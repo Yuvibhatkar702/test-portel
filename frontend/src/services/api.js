@@ -27,7 +27,7 @@ export const usersAPI = {
 export const resultsAPI = {
   getAllResults: () => api.get('/results'),
   getTestResults: (testId) => api.get(`/results/test/${testId}`),
-  getUserResults: (userId) => api.get(`/results/user/${userId}`),
+  getSharedLinkResults: () => api.get('/results/shared-links'),
   getResult: (id) => api.get(`/results/${id}`),
   deleteResult: (id) => api.delete(`/results/${id}`),
 };

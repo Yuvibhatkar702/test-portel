@@ -85,6 +85,17 @@ function Sidebar() {
           </Nav.Link>
         </LinkContainer>
         
+        <LinkContainer to="/shared-results">
+          <Nav.Link className={`d-flex align-items-center px-3 py-3 text-decoration-none ${
+            isActive('/shared-results') 
+              ? 'active bg-light text-success border-end border-3 border-success fw-medium' 
+              : 'text-dark'
+          }`}>
+            <i className={`bi bi-share ${isActive('/shared-results') ? 'text-success' : 'text-muted'}`}></i>
+            {!isCollapsed && <span className="ms-3">Shared Link Results</span>}
+          </Nav.Link>
+        </LinkContainer>
+        
         <LinkContainer to="/my-account">
           <Nav.Link className={`d-flex align-items-center px-3 py-3 text-decoration-none ${
             isActive('/my-account') 

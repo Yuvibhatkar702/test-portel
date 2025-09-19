@@ -129,6 +129,46 @@ const testSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Shareable link functionality
+  shareableLink: {
+    type: String,
+    unique: true,
+    index: true
+  },
+  linkExpiry: {
+    type: Date
+  },
+  linkActive: {
+    type: Boolean,
+    default: true
+  },
+  allowAnonymous: {
+    type: Boolean,
+    default: true
+  },
+  maxAttempts: {
+    type: Number,
+    default: 0 // 0 means unlimited
+  },
+  // Security settings
+  proctoring: {
+    cameraRequired: {
+      type: Boolean,
+      default: true
+    },
+    fullscreenRequired: {
+      type: Boolean,
+      default: true
+    },
+    tabSwitchLimit: {
+      type: Number,
+      default: 3
+    },
+    preventCopy: {
+      type: Boolean,
+      default: true
+    }
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -149,19 +189,49 @@ testSchema.index({ createdAt: -1 });
 
 // Pre-save middleware to calculate totalMarks and validate questions
 testSchema.pre('save', function(next) {
-  if (this.questions && this.questions.length > 0) {
+  // Only validate questions if questions array is being modified or is new
+  if (this.questions && this.questions.length > 0 && (this.isModified('questions') || this.isNew)) {
     this.totalMarks = this.questions.reduce((sum, question) => sum + question.marks, 0);
     
     // Validate that each question has at least one correct answer
     for (let question of this.questions) {
-      const hasCorrectAnswer = question.options.some(option => option.isCorrect === true);
-      if (!hasCorrectAnswer) {
-        const err = new Error('Each question must have at least one correct answer');
-        return next(err);
+      if (question.options && question.options.length > 0) {
+        const hasCorrectAnswer = question.options.some(option => option.isCorrect === true);
+        if (!hasCorrectAnswer) {
+          const err = new Error('Each question must have at least one correct answer');
+          return next(err);
+        }
       }
     }
   }
+  
+  // Generate shareable link if not exists
+  if (!this.shareableLink) {
+    this.shareableLink = this.generateShareableLink();
+  }
+  
   next();
 });
+
+// Method to generate unique shareable link
+testSchema.methods.generateShareableLink = function() {
+  const crypto = require('crypto');
+  const timestamp = Date.now().toString(36);
+  const randomStr = crypto.randomBytes(8).toString('hex');
+  return `exam-${timestamp}-${randomStr}`;
+};
+
+// Method to generate shareable URL
+testSchema.methods.getShareableUrl = function(baseUrl = 'http://localhost:3000') {
+  return `${baseUrl}/take-exam/${this.shareableLink}`;
+};
+
+// Method to check if link is valid
+testSchema.methods.isLinkValid = function() {
+  if (!this.linkActive) return false;
+  if (this.linkExpiry && new Date() > this.linkExpiry) return false;
+  if (this.status !== 'Active') return false;
+  return true;
+};
 
 module.exports = mongoose.model('Test', testSchema);

@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Modal, ProgressBar } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Container, Row, Col, Card, Form, Button, Alert, Modal, ProgressBar, Badge } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { testsAPI } from '../services/api';
 
-function TakeTest() {
-  const { id } = useParams();
+function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, studentInfo }) {
+  const { id: routeTestId } = useParams();
+  const testId = propTestId || routeTestId;
   const navigate = useNavigate();
+  const videoRef = useRef(null);
   const [test, setTest] = useState(null);
   const [answers, setAnswers] = useState({});
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -16,13 +18,34 @@ function TakeTest() {
   const [testStarted, setTestStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [showUserForm, setShowUserForm] = useState(true);
+  const [userName, setUserName] = useState(studentInfo?.name || '');
+  const [userEmail, setUserEmail] = useState(studentInfo?.email || '');
+  const [showUserForm, setShowUserForm] = useState(!studentInfo); // Skip form if student info provided
+  
+  // Security and monitoring states
+  const [cameraAccess, setCameraAccess] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [violations, setViolations] = useState([]);
+  const [warningCount, setWarningCount] = useState(0);
+  const [showViolationModal, setShowViolationModal] = useState(false);
+  const [violationMessage, setViolationMessage] = useState('');
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [examLocked, setExamLocked] = useState(false);
 
   useEffect(() => {
-    loadTest();
-  }, [id]);
+    if (preloadedTest) {
+      setTest(preloadedTest);
+      setTimeLeft(preloadedTest.duration * 60);
+      setLoading(false);
+    } else {
+      loadTest();
+    }
+    setupSecurityMonitoring();
+    return () => {
+      cleanup();
+    };
+  }, [testId, preloadedTest]);
 
   useEffect(() => {
     let timer;
@@ -40,10 +63,180 @@ function TakeTest() {
     return () => clearInterval(timer);
   }, [testStarted, timeLeft]);
 
+  // Security monitoring setup
+  const setupSecurityMonitoring = () => {
+    // Monitor visibility change (tab switch)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Monitor fullscreen changes
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    // Prevent right-click and common shortcuts
+    document.addEventListener('contextmenu', preventRightClick);
+    document.addEventListener('keydown', preventShortcuts);
+
+    // Monitor focus/blur
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur);
+  };
+
+  const cleanup = () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.removeEventListener('contextmenu', preventRightClick);
+    document.removeEventListener('keydown', preventShortcuts);
+    window.removeEventListener('focus', handleWindowFocus);
+    window.removeEventListener('blur', handleWindowBlur);
+    
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  };
+
+  const handleVisibilityChange = () => {
+    if (testStarted && document.hidden) {
+      recordViolation('Tab Switch', 'Student switched to another tab or window');
+      setTabSwitchCount(prev => prev + 1);
+      showViolationWarning('⚠️ Tab switching detected! This action has been recorded.');
+    }
+  };
+
+  const handleFullscreenChange = () => {
+    const isCurrentlyFullscreen = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    
+    setIsFullscreen(isCurrentlyFullscreen);
+    
+    if (testStarted && !isCurrentlyFullscreen) {
+      recordViolation('Fullscreen Exit', 'Student exited fullscreen mode');
+      showViolationWarning('⚠️ Please return to fullscreen mode to continue the exam.');
+    }
+  };
+
+  const handleWindowFocus = () => {
+    if (testStarted) {
+      console.log('Window focused');
+    }
+  };
+
+  const handleWindowBlur = () => {
+    if (testStarted) {
+      recordViolation('Window Blur', 'Student switched focus away from exam window');
+      showViolationWarning('⚠️ Focus change detected! Please keep the exam window active.');
+    }
+  };
+
+  const preventRightClick = (e) => {
+    if (testStarted) {
+      e.preventDefault();
+      return false;
+    }
+  };
+
+  const preventShortcuts = (e) => {
+    if (testStarted) {
+      // Prevent common shortcuts
+      const forbiddenKeys = [
+        'F12', // Developer tools
+        'I', 'J', 'C', 'U', 'S', 'A' // When combined with Ctrl
+      ];
+      
+      if (
+        (e.ctrlKey && forbiddenKeys.includes(e.key.toUpperCase())) ||
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        e.key === 'F5' || // Refresh
+        (e.ctrlKey && e.key === 'r') // Refresh
+      ) {
+        e.preventDefault();
+        recordViolation('Shortcut Attempt', `Attempted to use shortcut: ${e.key}`);
+        showViolationWarning('⚠️ Keyboard shortcuts are disabled during the exam.');
+        return false;
+      }
+    }
+  };
+
+  const recordViolation = (type, description) => {
+    const violation = {
+      type,
+      description,
+      timestamp: new Date().toISOString(),
+      questionIndex: currentQuestion
+    };
+    
+    setViolations(prev => [...prev, violation]);
+    setWarningCount(prev => prev + 1);
+    
+    // Auto-submit if too many violations
+    if (warningCount >= 3) {
+      setViolationMessage('Too many security violations detected. Exam will be submitted automatically.');
+      setExamLocked(true);
+      setTimeout(() => {
+        handleAutoSubmit();
+      }, 3000);
+    }
+  };
+
+  const showViolationWarning = (message) => {
+    setViolationMessage(message);
+    setShowViolationModal(true);
+    setTimeout(() => {
+      setShowViolationModal(false);
+    }, 3000);
+  };
+
+  const requestCameraAccess = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: false 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      
+      setCameraAccess(true);
+      setCameraError('');
+      return true;
+    } catch (error) {
+      console.error('Camera access error:', error);
+      setCameraError('Camera access is required to take this exam. Please allow camera permissions and refresh the page.');
+      setCameraAccess(false);
+      return false;
+    }
+  };
+
+  const enterFullscreen = () => {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      element.webkitRequestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+      element.mozRequestFullScreen();
+    } else if (element.msRequestFullscreen) {
+      element.msRequestFullscreen();
+    }
+  };
+
   const loadTest = async () => {
+    if (preloadedTest) return; // Skip loading if test is already provided
+    
     try {
       setLoading(true);
-      const response = await testsAPI.getTest(id);
+      const response = await testsAPI.getTest(testId);
       setTest(response.data);
       
       if (response.data.duration > 0) {
@@ -57,15 +250,45 @@ function TakeTest() {
     }
   };
 
-  const startTest = (e) => {
+  const startTest = async (e) => {
     e.preventDefault();
     if (!userName.trim() || !userEmail.trim()) {
       setError('Please enter your name and email to start the test.');
       return;
     }
-    setShowUserForm(false);
-    setTestStarted(true);
-    setStartTime(new Date());
+
+    // Step 1: Request camera access
+    setError('Checking camera access...');
+    const cameraGranted = await requestCameraAccess();
+    if (!cameraGranted) {
+      setError('Camera access is required to take this exam. Please allow camera permissions and try again.');
+      return;
+    }
+
+    // Step 2: Enter fullscreen mode
+    setError('Please allow fullscreen mode...');
+    try {
+      await enterFullscreen();
+      // Wait a moment for fullscreen to activate
+      setTimeout(() => {
+        if (!isFullscreen) {
+          setError('Fullscreen mode is required to take this exam. Please try again.');
+          return;
+        }
+        
+        // Step 3: Start the exam
+        setError('');
+        setShowUserForm(false);
+        setTestStarted(true);
+        setStartTime(new Date());
+        
+        // Show initial instructions
+        showViolationWarning('📹 Exam monitoring is active. Stay in fullscreen mode and avoid switching tabs.');
+        
+      }, 1000);
+    } catch (fullscreenError) {
+      setError('Unable to enter fullscreen mode. Please try again or use a different browser.');
+    }
   };
 
   const handleAnswerChange = (questionIndex, answerIndex) => {
@@ -92,10 +315,14 @@ function TakeTest() {
   };
 
   const handleAutoSubmit = () => {
-    submitTest();
+    setViolationMessage('⏰ Time expired! Submitting exam automatically...');
+    setShowViolationModal(true);
+    setTimeout(() => {
+      submitTest(true);
+    }, 2000);
   };
 
-  const submitTest = async () => {
+  const submitTest = async (autoSubmit = false) => {
     setSubmitting(true);
     const endTime = new Date();
     const timeTaken = startTime ? Math.round((endTime - startTime) / 1000) : 0;
@@ -104,20 +331,44 @@ function TakeTest() {
     const answersArray = test.questions.map((_, index) => answers[index] || -1);
 
     try {
-      const response = await testsAPI.submitTest(id, {
+      const response = await testsAPI.submitTest(testId, {
         answers: answersArray,
         userName,
         userEmail,
-        timeTaken
+        timeTaken,
+        violations: violations, // Include security violations
+        totalViolations: violations.length,
+        tabSwitches: tabSwitchCount,
+        autoSubmitted: autoSubmit,
+        examLocked: examLocked,
+        submissionReason: autoSubmit ? 'Time expired' : examLocked ? 'Security violations' : 'Manual submission',
+        // Additional info for shared links
+        ...(isSharedLink && studentInfo && {
+          rollNumber: studentInfo.rollNumber || '',
+          phone: studentInfo.phone || '',
+          accessMethod: 'shared_link',
+          shareableLink: window.location.pathname.split('/').pop()
+        })
       });
 
       // Navigate to results page or show results
-      navigate('/results', { 
-        state: { 
-          result: response.data,
-          testTitle: test.title
-        }
-      });
+      if (isSharedLink) {
+        // For shared links, show results immediately without navigation
+        navigate('/test-result', { 
+          state: { 
+            result: response.data,
+            testTitle: test.title,
+            isSharedLink: true
+          }
+        });
+      } else {
+        navigate('/results', { 
+          state: { 
+            result: response.data,
+            testTitle: test.title
+          }
+        });
+      }
     } catch (err) {
       setError('Failed to submit test. Please try again.');
       console.error('Error submitting test:', err);
@@ -181,7 +432,7 @@ function TakeTest() {
                   <p className="text-muted">{test.description}</p>
                 )}
                 
-                <div className="mb-3">
+                <div className="mb-4">
                   <strong>Test Details:</strong>
                   <ul className="mt-2">
                     <li>Questions: {test.questions.length}</li>
@@ -190,6 +441,23 @@ function TakeTest() {
                     )}
                     <li>Category: {test.category}</li>
                   </ul>
+                </div>
+
+                <div className="mb-4 p-3 bg-light rounded">
+                  <strong className="text-warning">
+                    <i className="bi bi-shield-exclamation me-2"></i>
+                    Security Requirements:
+                  </strong>
+                  <ul className="mt-2 mb-0 small">
+                    <li><strong>Camera Access:</strong> Required for identity verification</li>
+                    <li><strong>Fullscreen Mode:</strong> Must remain in fullscreen during exam</li>
+                    <li><strong>Tab Switching:</strong> Not allowed during exam</li>
+                    <li><strong>Screen Recording:</strong> This session may be monitored</li>
+                    <li><strong>Auto-Submit:</strong> Exam will auto-submit when time expires</li>
+                  </ul>
+                  <div className="mt-2 text-danger small">
+                    <strong>Warning:</strong> Multiple violations will result in automatic submission
+                  </div>
                 </div>
 
                 {error && <Alert variant="danger">{error}</Alert>}
@@ -217,12 +485,21 @@ function TakeTest() {
                     />
                   </Form.Group>
 
+                  <Form.Group className="mb-4">
+                    <Form.Check
+                      type="checkbox"
+                      label="I understand and agree to the security requirements above"
+                      required
+                    />
+                  </Form.Group>
+
                   <div className="d-flex justify-content-between">
                     <Button variant="outline-secondary" onClick={() => navigate('/dashboard')}>
                       Back to Dashboard
                     </Button>
-                    <Button type="submit" variant="success">
-                      Start Test
+                    <Button type="submit" variant="success" size="lg">
+                      <i className="bi bi-camera-video me-2"></i>
+                      Start Secure Test
                     </Button>
                   </div>
                 </Form>
@@ -236,6 +513,34 @@ function TakeTest() {
 
   return (
     <Container fluid>
+      {/* Security Monitoring Bar */}
+      {testStarted && (
+        <Row className="bg-light border-bottom py-2 mb-3">
+          <Col>
+            <div className="d-flex justify-content-between align-items-center small">
+              <div className="d-flex align-items-center gap-3">
+                <Badge bg={cameraAccess ? 'success' : 'danger'}>
+                  <i className="bi bi-camera-video me-1"></i>
+                  Camera: {cameraAccess ? 'Active' : 'Inactive'}
+                </Badge>
+                <Badge bg={isFullscreen ? 'success' : 'warning'}>
+                  <i className="bi bi-fullscreen me-1"></i>
+                  Fullscreen: {isFullscreen ? 'On' : 'Off'}
+                </Badge>
+                <Badge bg={warningCount === 0 ? 'success' : warningCount < 3 ? 'warning' : 'danger'}>
+                  <i className="bi bi-shield-exclamation me-1"></i>
+                  Violations: {warningCount}
+                </Badge>
+              </div>
+              <div className="text-muted">
+                <i className="bi bi-eye me-1"></i>
+                Monitoring Active - Stay in fullscreen mode
+              </div>
+            </div>
+          </Col>
+        </Row>
+      )}
+
       {/* Header */}
       <Row className="bg-white border-bottom py-3 mb-4">
         <Col>
@@ -397,6 +702,84 @@ function TakeTest() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Security Violation Modal */}
+      <Modal 
+        show={showViolationModal} 
+        centered 
+        backdrop="static" 
+        keyboard={false}
+        size="sm"
+      >
+        <Modal.Header className="bg-warning">
+          <Modal.Title className="text-dark">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            Security Alert
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          <p className="mb-0">{violationMessage}</p>
+          {warningCount > 0 && (
+            <div className="mt-2">
+              <small className="text-muted">
+                Violations: {warningCount}/3
+              </small>
+            </div>
+          )}
+        </Modal.Body>
+      </Modal>
+
+      {/* Hidden Camera Video for Monitoring */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          width: '120px',
+          height: '80px',
+          border: '2px solid #28a745',
+          borderRadius: '8px',
+          zIndex: 1000,
+          display: testStarted && cameraAccess ? 'block' : 'none'
+        }}
+      />
+
+      {/* Camera Error Alert */}
+      {cameraError && (
+        <Alert 
+          variant="danger" 
+          className="position-fixed bottom-0 start-50 translate-middle-x"
+          style={{ zIndex: 1050, maxWidth: '400px' }}
+        >
+          <Alert.Heading className="h6">Camera Access Required</Alert.Heading>
+          <p className="mb-0 small">{cameraError}</p>
+        </Alert>
+      )}
+
+      {/* Exam Locked Overlay */}
+      {examLocked && (
+        <div 
+          className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center"
+          style={{ zIndex: 2000 }}
+        >
+          <Card className="text-center p-4">
+            <Card.Body>
+              <div className="text-danger mb-3">
+                <i className="bi bi-shield-x" style={{ fontSize: '3rem' }}></i>
+              </div>
+              <h4 className="text-danger">Exam Locked</h4>
+              <p className="text-muted">
+                Too many security violations detected.<br/>
+                Your exam will be submitted automatically.
+              </p>
+            </Card.Body>
+          </Card>
+        </div>
+      )}
     </Container>
   );
 }

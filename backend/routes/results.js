@@ -2,20 +2,61 @@ const express = require('express');
 const router = express.Router();
 const Result = require('../models/Result');
 
+// Helper functions
+const getGrade = (percentage) => {
+  if (percentage >= 90) return 'A+';
+  if (percentage >= 80) return 'A';
+  if (percentage >= 70) return 'B';
+  if (percentage >= 60) return 'C';
+  if (percentage >= 50) return 'D';
+  return 'F';
+};
+
+const formatTime = (seconds) => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  if (hrs > 0) {
+    return `${hrs}h ${mins}m ${secs}s`;
+  } else if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+};
+
 // @route   GET /api/results
-// @desc    Get all results
+// @desc    Get all results with enhanced data for shared links
 // @access  Public
 router.get('/', async (req, res) => {
   try {
     const results = await Result.find()
-      .populate('testId', 'title category')
-      .populate('userId', 'name email')
-      .sort({ submittedAt: -1 });
+      .populate('test', 'title category description duration totalMarks')
+      .sort({ submittedAt: -1 })
+      .lean();
 
-    res.json(results);
+    // Add computed fields and format data
+    const formattedResults = results.map(result => ({
+      ...result,
+      id: result._id,
+      testTitle: result.test?.title || 'Unknown Test',
+      testCategory: result.test?.category || 'Unknown',
+      grade: getGrade(result.percentage),
+      isPassed: result.percentage >= 60,
+      violationSummary: {
+        total: result.totalViolations || 0,
+        tabSwitches: result.tabSwitches || 0,
+        hasViolations: (result.totalViolations || 0) > 0
+      },
+      isSharedLink: result.accessMethod === 'shared_link',
+      timeTakenFormatted: formatTime(result.timeTaken || 0)
+    }));
+
+    res.json(formattedResults);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
+    console.error('Error fetching results:', error.message);
+    res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
 
@@ -24,76 +65,105 @@ router.get('/', async (req, res) => {
 // @access  Public
 router.get('/test/:testId', async (req, res) => {
   try {
-    const results = await Result.find({ testId: req.params.testId })
-      .populate('userId', 'name email')
-      .sort({ submittedAt: -1 });
+    const results = await Result.find({ test: req.params.testId })
+      .populate('test', 'title category')
+      .sort({ submittedAt: -1 })
+      .lean();
 
-    res.json(results);
+    const formattedResults = results.map(result => ({
+      ...result,
+      id: result._id,
+      grade: getGrade(result.percentage),
+      isPassed: result.percentage >= 60,
+      isSharedLink: result.accessMethod === 'shared_link',
+      timeTakenFormatted: formatTime(result.timeTaken || 0)
+    }));
+
+    res.json(formattedResults);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
+    console.error('Error fetching test results:', error.message);
+    res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
 
-// @route   GET /api/results/user/:userId
-// @desc    Get results for a specific user
+// @route   GET /api/results/shared-links
+// @desc    Get all results from shared link access
 // @access  Public
-router.get('/user/:userId', async (req, res) => {
+router.get('/shared-links', async (req, res) => {
   try {
-    const results = await Result.find({ userId: req.params.userId })
-      .populate('testId', 'title category')
-      .sort({ submittedAt: -1 });
+    const results = await Result.find({ accessMethod: 'shared_link' })
+      .populate('test', 'title category description duration totalMarks')
+      .sort({ submittedAt: -1 })
+      .lean();
 
-    res.json(results);
+    const formattedResults = results.map(result => ({
+      ...result,
+      id: result._id,
+      testTitle: result.test?.title || 'Unknown Test',
+      grade: getGrade(result.percentage),
+      isPassed: result.percentage >= 60,
+      timeTakenFormatted: formatTime(result.timeTaken || 0)
+    }));
+
+    res.json(formattedResults);
   } catch (error) {
-    console.error(error.message);
-    res.status(500).send('Server Error');
+    console.error('Error fetching shared link results:', error.message);
+    res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
 
 // @route   GET /api/results/:id
-// @desc    Get result by ID
+// @desc    Get result by ID with detailed information
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
     const result = await Result.findById(req.params.id)
-      .populate('testId', 'title category questions')
-      .populate('userId', 'name email');
+      .populate('test', 'title category questions totalMarks duration')
+      .lean();
 
     if (!result) {
-      return res.status(404).json({ msg: 'Result not found' });
+      return res.status(404).json({ error: 'Result not found' });
     }
 
-    res.json(result);
+    const formattedResult = {
+      ...result,
+      id: result._id,
+      grade: getGrade(result.percentage),
+      isPassed: result.percentage >= 60,
+      isSharedLink: result.accessMethod === 'shared_link',
+      timeTakenFormatted: formatTime(result.timeTaken || 0)
+    };
+
+    res.json(formattedResult);
   } catch (error) {
-    console.error(error.message);
+    console.error('Error fetching result:', error.message);
     if (error.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Result not found' });
+      return res.status(404).json({ error: 'Result not found' });
     }
-    res.status(500).send('Server Error');
+    res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
 
 // @route   DELETE /api/results/:id
 // @desc    Delete a result
-// @access  Private
+// @access  Public (should be protected in production)
 router.delete('/:id', async (req, res) => {
   try {
     const result = await Result.findById(req.params.id);
 
     if (!result) {
-      return res.status(404).json({ msg: 'Result not found' });
+      return res.status(404).json({ error: 'Result not found' });
     }
 
     await Result.findByIdAndDelete(req.params.id);
 
-    res.json({ msg: 'Result removed' });
+    res.json({ message: 'Result deleted successfully' });
   } catch (error) {
-    console.error(error.message);
+    console.error('Error deleting result:', error.message);
     if (error.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Result not found' });
+      return res.status(404).json({ error: 'Result not found' });
     }
-    res.status(500).send('Server Error');
+    res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
 

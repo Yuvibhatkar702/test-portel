@@ -49,21 +49,175 @@ router.get('/:id', async (req, res) => {
     }
 
     // Return test with questions but hide correct answers
-    const testData = test.toObject();
-    testData.id = test._id;
-    testData.questions = testData.questions.map(q => ({
-      _id: q._id,
-      questionText: q.questionText,
-      options: q.options.map(opt => ({ text: opt.text })), // Hide isCorrect field
-      marks: q.marks
-    }));
+    const testData = {
+      ...test.toObject(),
+      questions: test.questions.map(q => ({
+        ...q.toObject(),
+        options: q.options.map(opt => ({
+          text: opt.text,
+          _id: opt._id
+        }))
+      }))
+    };
 
     res.json(testData);
   } catch (error) {
     console.error('Error fetching test:', error.message);
-    if (error.kind === 'ObjectId') {
+    res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+});
+
+// @route   GET /api/tests/share/:shareableLink
+// @desc    Get test by shareable link
+// @access  Public
+router.get('/share/:shareableLink', async (req, res) => {
+  try {
+    const test = await Test.findOne({ shareableLink: req.params.shareableLink })
+      .populate('createdBy', 'firstName lastName email');
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found or link expired' });
+    }
+
+    // Check if link is valid
+    if (!test.isLinkValid()) {
+      return res.status(410).json({ 
+        error: 'Test link has expired or is no longer active',
+        linkExpired: true 
+      });
+    }
+
+    // Return test with questions but hide correct answers
+    const testData = {
+      ...test.toObject(),
+      questions: test.questions.map(q => ({
+        ...q.toObject(),
+        options: q.options.map(opt => ({
+          text: opt.text,
+          _id: opt._id
+        }))
+      }))
+    };
+
+    res.json(testData);
+  } catch (error) {
+    console.error('Error fetching test by shareable link:', error.message);
+    res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+});
+
+// @route   POST /api/tests/:id/generate-link
+// @desc    Generate or refresh shareable link for a test
+// @access  Public (should be protected in production)
+router.post('/:id/generate-link', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Invalid test ID format' });
     }
+
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    // Generate new link
+    const newShareableLink = test.generateShareableLink();
+    
+    // Prepare update data
+    const updateData = {
+      shareableLink: newShareableLink,
+      linkActive: true
+    };
+    
+    // Set expiry if provided
+    if (req.body.expiryDays) {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + parseInt(req.body.expiryDays));
+      updateData.linkExpiry = expiryDate;
+    }
+
+    // Update security settings if provided
+    if (req.body.proctoring) {
+      updateData.proctoring = { ...test.proctoring, ...req.body.proctoring };
+    }
+
+    // Use findByIdAndUpdate to avoid validation issues
+    const updatedTest = await Test.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: false } // Disable validators for this update
+    );
+
+    const baseUrl = req.protocol + '://' + req.get('host');
+    // Convert backend URL to frontend URL
+    const frontendUrl = baseUrl.replace(':3001', ':3000');
+    const shareableUrl = updatedTest.getShareableUrl(frontendUrl);
+
+    res.json({
+      success: true,
+      shareableLink: updatedTest.shareableLink,
+      shareableUrl: shareableUrl,
+      linkExpiry: updatedTest.linkExpiry,
+      linkActive: updatedTest.linkActive,
+      proctoring: updatedTest.proctoring
+    });
+  } catch (error) {
+    console.error('Error generating shareable link:', error.message);
+    res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+});
+
+// @route   PUT /api/tests/:id/link-settings
+// @desc    Update link settings (active status, expiry, etc.)
+// @access  Public (should be protected in production)  
+router.put('/:id/link-settings', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid test ID format' });
+    }
+
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    // Prepare update data
+    const updateData = {};
+
+    // Update link settings
+    if (req.body.linkActive !== undefined) {
+      updateData.linkActive = req.body.linkActive;
+    }
+
+    if (req.body.expiryDays) {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + parseInt(req.body.expiryDays));
+      updateData.linkExpiry = expiryDate;
+    }
+
+    if (req.body.removeExpiry) {
+      updateData.linkExpiry = undefined;
+    }
+
+    if (req.body.proctoring) {
+      updateData.proctoring = { ...test.proctoring, ...req.body.proctoring };
+    }
+
+    // Use findByIdAndUpdate to avoid validation issues
+    const updatedTest = await Test.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: false } // Disable validators for this update
+    );
+
+    res.json({
+      success: true,
+      linkActive: updatedTest.linkActive,
+      linkExpiry: updatedTest.linkExpiry,
+      proctoring: updatedTest.proctoring
+    });
+  } catch (error) {
+    console.error('Error updating link settings:', error.message);
     res.status(500).json({ error: 'Server Error', message: error.message });
   }
 });
@@ -204,7 +358,22 @@ router.post('/:id/submit', async (req, res) => {
       return res.status(404).json({ error: 'Test not found' });
     }
 
-    const { answers, userName, userEmail, timeTaken } = req.body;
+    const { 
+      answers, 
+      userName, 
+      userEmail, 
+      timeTaken,
+      violations,
+      totalViolations,
+      tabSwitches,
+      autoSubmitted,
+      examLocked,
+      submissionReason,
+      rollNumber,
+      phone,
+      accessMethod,
+      shareableLink
+    } = req.body;
 
     // Validate required fields
     if (!userName || !userEmail || !Array.isArray(answers)) {
@@ -244,6 +413,10 @@ router.post('/:id/submit', async (req, res) => {
       test: test._id,
       userName,
       userEmail,
+      rollNumber: rollNumber || '',
+      phone: phone || '',
+      accessMethod: accessMethod || 'direct',
+      shareableLink: shareableLink || '',
       answers,
       correctAnswers,
       totalQuestions,
@@ -251,8 +424,14 @@ router.post('/:id/submit', async (req, res) => {
       obtainedMarks,
       totalMarks,
       timeTaken: timeTaken || 0,
+      detailedResults,
       submittedAt: new Date(),
-      detailedResults
+      violations: violations || [],
+      totalViolations: totalViolations || 0,
+      tabSwitches: tabSwitches || 0,
+      autoSubmitted: autoSubmitted || false,
+      examLocked: examLocked || false,
+      submissionReason: submissionReason || 'manual'
     });
 
     await result.save();

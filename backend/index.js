@@ -11,28 +11,80 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      tls: true,
-      tlsAllowInvalidCertificates: true,
-      tlsAllowInvalidHostnames: true,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000
-    });
-    console.log('✅ MongoDB Atlas connected successfully');
-    console.log('🗄️  Using real database for all operations');
-  } catch (error) {
-    console.error('❌ MongoDB connection failed:', error.message);
-    console.log('📝 Please check your MongoDB connection string and network access');
-    console.log('🔄 Server will continue running for demonstration purposes');
-    console.log('⚠️  API calls will fail until database connection is restored');
+const connectDB = async (retryCount = 0) => {
+  const maxRetries = 3;
+  const connectionStrings = [
+    process.env.MONGODB_URI,
+    process.env.MONGODB_URI_FALLBACK,
+    process.env.MONGODB_URI?.replace('&appName=test', '') // Remove appName parameter
+  ];
+
+  for (let i = 0; i < connectionStrings.length; i++) {
+    const uri = connectionStrings[i];
+    if (!uri) continue;
+
+    try {
+      // Clear any existing connections
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+      }
+
+      console.log(`🔄 Attempting to connect with method ${i + 1}...`);
+      
+      await mongoose.connect(uri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000,
+        socketTimeoutMS: 45000,
+        maxPoolSize: 10,
+        retryWrites: true,
+        w: 'majority'
+      });
+      
+      console.log('✅ MongoDB Atlas connected successfully');
+      console.log('🗄️  Using real database for all operations');
+      return; // Success! Exit the function
+      
+    } catch (error) {
+      console.error(`❌ Connection attempt ${i + 1} failed:`, error.message);
+    }
+  }
+
+  // If all connection attempts failed
+  console.error('💥 All MongoDB connection attempts failed');
+  console.log('📝 Please check your MongoDB connection string and network access');
+  console.log('🔄 Server will continue running for demonstration purposes');
+  console.log('⚠️  API calls will fail until database connection is restored');
+  
+  // Retry after delay if we haven't exceeded max retries
+  if (retryCount < maxRetries) {
+    console.log(`🔄 Retrying connection in 10 seconds... (Attempt ${retryCount + 1}/${maxRetries})`);
+    setTimeout(() => connectDB(retryCount + 1), 10000);
   }
 };
 
 connectDB();
+
+// MongoDB connection event listeners
+mongoose.connection.on('connected', () => {
+  console.log('🔗 Mongoose connected to MongoDB Atlas');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('💥 Mongoose connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📴 Mongoose disconnected from MongoDB Atlas');
+});
+
+// Handle app termination gracefully
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  console.log('🛑 MongoDB connection closed due to app termination');
+  process.exit(0);
+});
 
 // Routes - using real database models only
 app.use('/api/tests', require('./routes/tests'));

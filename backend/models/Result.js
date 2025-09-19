@@ -1,11 +1,15 @@
 const mongoose = require('mongoose');
 
-const answerSchema = new mongoose.Schema({
-  questionId: {
-    type: mongoose.Schema.Types.ObjectId,
+const detailedResultSchema = new mongoose.Schema({
+  questionIndex: {
+    type: Number,
     required: true
   },
-  selectedAnswer: {
+  question: {
+    type: String,
+    required: true
+  },
+  userAnswer: {
     type: String,
     required: true
   },
@@ -19,92 +23,134 @@ const answerSchema = new mongoose.Schema({
   },
   marks: {
     type: Number,
-    required: true
-  },
-  marksObtained: {
-    type: Number,
-    required: true
-  },
-  timeTaken: {
-    type: Number, // in seconds
+    required: true,
     default: 0
   }
 });
 
 const resultSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   test: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Test',
     required: true
   },
-  answers: [answerSchema],
-  score: {
-    obtained: {
-      type: Number,
-      required: true
-    },
-    total: {
-      type: Number,
-      required: true
-    },
-    percentage: {
-      type: Number,
-      required: true
-    }
-  },
-  timeTaken: {
-    type: Number, // in minutes
-    required: true
-  },
-  status: {
+  userName: {
     type: String,
-    enum: ['started', 'in-progress', 'completed', 'abandoned', 'expired'],
-    default: 'completed'
+    required: true,
+    trim: true
   },
-  attempt: {
+  userEmail: {
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true
+  },
+  // Additional student information for shared links
+  rollNumber: {
+    type: String,
+    trim: true
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  accessMethod: {
+    type: String,
+    enum: ['direct', 'shared_link'],
+    default: 'direct'
+  },
+  shareableLink: {
+    type: String,
+    trim: true
+  },
+  answers: [{
+    type: Number, // Array of selected answer indices
+    default: -1
+  }],
+  correctAnswers: {
     type: Number,
     required: true,
-    min: 1,
-    default: 1
+    min: 0
   },
-  startTime: {
+  totalQuestions: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  percentage: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  },
+  obtainedMarks: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  totalMarks: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  timeTaken: {
+    type: Number, // in seconds
+    min: 0,
+    default: 0
+  },
+  detailedResults: [detailedResultSchema],
+  submittedAt: {
     type: Date,
-    required: true
+    default: Date.now
   },
-  endTime: {
-    type: Date
-  },
-  ipAddress: {
-    type: String
-  },
-  feedback: {
-    rating: {
-      type: Number,
-      min: 1,
-      max: 5
-    },
-    comment: {
+  // Security and monitoring data
+  violations: [{
+    type: {
       type: String,
-      maxlength: 1000
+      enum: ['tab_switch', 'camera_lost', 'fullscreen_exit', 'copy_attempt', 'right_click']
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    count: {
+      type: Number,
+      default: 1
     }
+  }],
+  totalViolations: {
+    type: Number,
+    default: 0
+  },
+  tabSwitches: {
+    type: Number,
+    default: 0
+  },
+  autoSubmitted: {
+    type: Boolean,
+    default: false
+  },
+  examLocked: {
+    type: Boolean,
+    default: false
+  },
+  submissionReason: {
+    type: String,
+    enum: ['manual', 'time_expired', 'security_violations', 'auto_submit'],
+    default: 'manual'
   }
 }, {
   timestamps: true
 });
 
-// Virtual for pass/fail status
+// Virtual for pass/fail status (assuming 60% passing score)
 resultSchema.virtual('isPassed').get(function() {
-  return this.score.percentage >= 60; // Default passing score
+  return this.percentage >= 60;
 });
 
 // Virtual for grade calculation
 resultSchema.virtual('grade').get(function() {
-  const percentage = this.score.percentage;
+  const percentage = this.percentage;
   if (percentage >= 90) return 'A+';
   if (percentage >= 80) return 'A';
   if (percentage >= 70) return 'B';
@@ -114,18 +160,10 @@ resultSchema.virtual('grade').get(function() {
 });
 
 // Index for better performance
-resultSchema.index({ user: 1, test: 1 });
-resultSchema.index({ user: 1, createdAt: -1 });
-resultSchema.index({ test: 1, createdAt: -1 });
-resultSchema.index({ status: 1 });
-resultSchema.index({ 'score.percentage': -1 });
-
-// Pre-save middleware to calculate percentage
-resultSchema.pre('save', function(next) {
-  if (this.score.total > 0) {
-    this.score.percentage = Math.round((this.score.obtained / this.score.total) * 100 * 100) / 100;
-  }
-  next();
-});
+resultSchema.index({ test: 1, submittedAt: -1 });
+resultSchema.index({ userEmail: 1, submittedAt: -1 });
+resultSchema.index({ accessMethod: 1 });
+resultSchema.index({ shareableLink: 1 });
+resultSchema.index({ percentage: -1 });
 
 module.exports = mongoose.model('Result', resultSchema);

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Badge, Button, Dropdown } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { testsAPI } from '../services/api';
+import ShareableLinkModal from './ShareableLinkModal';
 
 function TestCard({ test, onTestDeleted }) {
   const navigate = useNavigate();
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const formatDate = (dateString) => {
     return `CREATED: ${dateString}`;
@@ -77,6 +79,15 @@ function TestCard({ test, onTestDeleted }) {
     }
   };
 
+  const handleShareTest = () => {
+    setShowShareModal(true);
+  };
+
+  const handleLinkGenerated = (linkData) => {
+    console.log('Link generated for test:', test._id, linkData);
+    // You can add additional actions here like updating test state
+  };
+
   return (
     <Card className="h-100 border shadow-sm">
       <div className="border-start border-primary border-4 position-absolute h-100"></div>
@@ -108,6 +119,10 @@ function TestCard({ test, onTestDeleted }) {
               <Dropdown.Item onClick={handleViewResults}>
                 <i className="bi bi-bar-chart me-2"></i>
                 View Results
+              </Dropdown.Item>
+              <Dropdown.Item onClick={handleShareTest}>
+                <i className="fas fa-share-alt me-2"></i>
+                Generate Share Link
               </Dropdown.Item>
               <Dropdown.Divider />
               <Dropdown.Item 
@@ -154,6 +169,14 @@ function TestCard({ test, onTestDeleted }) {
           </Badge>
         </div>
       </Card.Body>
+
+      {/* Share Modal */}
+      <ShareableLinkModal
+        show={showShareModal}
+        onHide={() => setShowShareModal(false)}
+        test={test}
+        onLinkGenerated={handleLinkGenerated}
+      />
     </Card>
   );
 }
