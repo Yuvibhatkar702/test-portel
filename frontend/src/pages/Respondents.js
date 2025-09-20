@@ -59,10 +59,12 @@ function Respondents() {
         }
       });
 
-      // Calculate average scores
+      // Calculate average scores and handle edge cases
       const respondentsList = Object.values(respondentsMap).map(respondent => ({
         ...respondent,
-        averageScore: Math.round(respondent.totalScore / respondent.testsCompleted)
+        averageScore: respondent.testsCompleted > 0 
+          ? Math.round(respondent.totalScore / respondent.testsCompleted) 
+          : 0
       }));
 
       setRespondents(respondentsList);
@@ -210,11 +212,24 @@ function Respondents() {
                           </small>
                         </td>
                         <td>
-                          <Button variant="outline-primary" size="sm" className="me-1">
-                            <i className="bi bi-eye me-1"></i>
-                            View Results
-                          </Button>
-                          <Button variant="outline-secondary" size="sm">
+                          <Button 
+                            variant="outline-primary" 
+                            size="sm"
+                            onClick={() => {
+                              const email = respondent.email;
+                              const subject = `Message from Test Portal - ${respondent.name}`;
+                              const body = `Hello ${respondent.name},\n\nI hope you're doing well. I wanted to reach out regarding your test activity.\n\nYour Stats:\n• Tests Completed: ${respondent.testsCompleted}\n• Average Score: ${respondent.averageScore}%\n• Last Activity: ${formatDate(respondent.lastActivity)}\n\nBest regards,\nTest Portal Team`;
+                              
+                              // Copy email and details to clipboard
+                              const emailDetails = `Email: ${email}\nSubject: ${subject}\n\nMessage:\n${body}`;
+                              
+                              navigator.clipboard.writeText(emailDetails).then(() => {
+                                alert(`📧 Contact Details Copied!\n\nTo: ${email}\n\nAll contact information has been copied to your clipboard.\n\nYou can now:\n1. Open your email application\n2. Paste the details (Ctrl+V)\n3. Send the message\n\nAlternatively, just copy this email: ${email}`);
+                              }).catch(() => {
+                                alert(`📧 Contact ${respondent.name}\n\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${body}\n\nPlease copy this information and use your email application to send the message.`);
+                              });
+                            }}
+                          >
                             <i className="bi bi-envelope me-1"></i>
                             Contact
                           </Button>
@@ -244,7 +259,9 @@ function Respondents() {
             <Card className="text-center border-success">
               <Card.Body>
                 <h3 className="text-success">
-                  {Math.round(filteredRespondents.reduce((sum, r) => sum + r.averageScore, 0) / filteredRespondents.length)}%
+                  {filteredRespondents.length > 0 
+                    ? Math.round(filteredRespondents.reduce((sum, r) => sum + (r.averageScore || 0), 0) / filteredRespondents.length)
+                    : 0}%
                 </h3>
                 <small className="text-muted">Average Score</small>
               </Card.Body>

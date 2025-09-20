@@ -90,6 +90,9 @@ process.on('SIGINT', async () => {
 app.use('/api/tests', require('./routes/tests'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/results', require('./routes/results'));
+app.use('/api/debug', require('./routes/debug')); // Debug routes for diagnosing scoring issues
+app.use('/api/test-fix', require('./routes/test-fix')); // Routes for fixing test question issues
+app.use('/api/database', require('./routes/database')); // Database management routes
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
