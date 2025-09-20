@@ -51,7 +51,7 @@ function Help() {
   };
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1200px' }}>
       <Row className="mb-4">
         <Col>
           <h2 className="mb-0">
@@ -63,7 +63,7 @@ function Help() {
       </Row>
 
       <Row>
-        <Col lg={8}>
+        <Col lg={8} md={12}>
           {/* Getting Started Section */}
           <Card className="mb-4">
             <Card.Header>
@@ -74,8 +74,8 @@ function Help() {
             </Card.Header>
             <Card.Body>
               <Row>
-                <Col md={6}>
-                  <Card className="h-100 border-primary">
+                <Col lg={6} md={6} sm={12}>
+                  <Card className="h-100 border-primary mb-3">
                     <Card.Body className="text-center">
                       <i className="bi bi-plus-circle display-4 text-primary mb-3"></i>
                       <h6>Create Your First Test</h6>
@@ -88,8 +88,8 @@ function Help() {
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col md={6}>
-                  <Card className="h-100 border-success">
+                <Col lg={6} md={6} sm={12}>
+                  <Card className="h-100 border-success mb-3">
                     <Card.Body className="text-center">
                       <i className="bi bi-share display-4 text-success mb-3"></i>
                       <h6>Share With Respondents</h6>
@@ -116,7 +116,7 @@ function Help() {
             </Card.Header>
             <Card.Body>
               <Row>
-                <Col md={4} className="mb-3">
+                <Col lg={4} md={6} sm={12} className="mb-3">
                   <Card className="border-0 shadow-sm">
                     <div className="bg-primary text-white p-4 text-center">
                       <i className="bi bi-play-fill display-4"></i>
@@ -128,7 +128,7 @@ function Help() {
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col md={4} className="mb-3">
+                <Col lg={4} md={6} sm={12} className="mb-3">
                   <Card className="border-0 shadow-sm">
                     <div className="bg-success text-white p-4 text-center">
                       <i className="bi bi-play-fill display-4"></i>
@@ -140,7 +140,7 @@ function Help() {
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col md={4} className="mb-3">
+                <Col lg={4} md={6} sm={12} className="mb-3">
                   <Card className="border-0 shadow-sm">
                     <div className="bg-info text-white p-4 text-center">
                       <i className="bi bi-play-fill display-4"></i>
@@ -177,7 +177,7 @@ function Help() {
           </Card>
         </Col>
 
-        <Col lg={4}>
+        <Col lg={4} md={12}>
           {/* Quick Links */}
           <Card className="mb-4">
             <Card.Header>
@@ -272,19 +272,19 @@ function Help() {
               <div className="small">
                 <div className="d-flex justify-content-between mb-1">
                   <span>Monday - Friday:</span>
-                  <span>9:00 AM - 6:00 PM EST</span>
+                  <span>8:00 AM - 8:00 PM IST</span>
                 </div>
                 <div className="d-flex justify-content-between mb-1">
                   <span>Saturday:</span>
-                  <span>10:00 AM - 4:00 PM EST</span>
+                  <span>10:00 AM - 6:00 PM IST</span>
                 </div>
                 <div className="d-flex justify-content-between mb-3">
                   <span>Sunday:</span>
-                  <span>Closed</span>
+                  <span>10:00 AM - 4:00 PM IST</span>
                 </div>
                 <div className="alert alert-info small mb-0">
                   <i className="bi bi-info-circle me-1"></i>
-                  We typically respond within 24 hours on business days.
+                  We typically respond within 2-4 hours during business hours.
                 </div>
               </div>
             </Card.Body>

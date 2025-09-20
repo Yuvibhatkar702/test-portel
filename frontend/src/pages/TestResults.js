@@ -151,10 +151,10 @@ function TestResults() {
   }
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1400px' }}>
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <h2>Test Results</h2>
             <Button variant="outline-secondary" onClick={() => navigate('/dashboard')}>
               Back to Dashboard

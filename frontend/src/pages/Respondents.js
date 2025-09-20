@@ -93,7 +93,7 @@ function Respondents() {
 
   if (loading) {
     return (
-      <Container fluid>
+      <Container className="py-4" style={{ maxWidth: '1400px' }}>
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
           <div className="spinner-border text-success" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -104,10 +104,10 @@ function Respondents() {
   }
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1400px' }}>
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <h2 className="mb-0">
               <i className="bi bi-people me-2"></i>
               Respondents ({filteredRespondents.length})

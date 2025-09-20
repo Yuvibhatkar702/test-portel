@@ -88,11 +88,11 @@ function Dashboard() {
 
   return (
     <div className="min-vh-100">
-      <Container fluid className="py-4">
+      <Container className="py-4" style={{ maxWidth: '1400px' }}>
         {error && (
           <Row className="mb-3">
             <Col>
-              <Alert variant="danger" className="d-flex justify-content-between align-items-center">
+              <Alert variant="danger" className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 {error}
                 <Button variant="outline-danger" size="sm" onClick={loadTests}>
                   Retry
@@ -105,7 +105,7 @@ function Dashboard() {
         {/* Header */}
         <Row className="mb-4">
           <Col>
-            <div className="d-flex justify-content-between align-items-center">
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
               <div>
                 <h4 className="mb-0">My tests <Badge bg="secondary" className="ms-2">({filteredTests.length})</Badge></h4>
               </div>
@@ -122,8 +122,8 @@ function Dashboard() {
         </Row>
 
         {/* Filters */}
-        <Row className="mb-4 align-items-end">
-          <Col md={3}>
+        <Row className="mb-4 align-items-end g-3">
+          <Col lg={3} md={4} sm={6} xs={12}>
             <Form.Group>
               <Form.Label className="text-muted small">Category</Form.Label>
               <Form.Select 
@@ -138,7 +138,7 @@ function Dashboard() {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+          <Col lg={2} md={3} sm={6} xs={12}>
             <Form.Group>
               <Form.Label className="text-muted small">Actions</Form.Label>
               <Button 
@@ -150,7 +150,7 @@ function Dashboard() {
               </Button>
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col lg={2} md={3} sm={6} xs={12}>
             <Form.Group>
               <Form.Label className="text-muted small">Status</Form.Label>
               <Form.Select 
@@ -165,7 +165,7 @@ function Dashboard() {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={4}>
+          <Col lg={5} md={12} sm={12} xs={12}>
             <Form.Group>
               <Form.Label className="text-muted small">Search</Form.Label>
               <InputGroup>

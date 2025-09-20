@@ -4,15 +4,22 @@ import { LinkContainer } from 'react-router-bootstrap';
 
 function Navbar() {
   return (
-    <BSNavbar bg="white" expand="lg" className="border-bottom">
+    <BSNavbar bg="white" expand="lg" className="border-bottom shadow-sm" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
       <Container fluid>
         <LinkContainer to="/dashboard">
           <BSNavbar.Brand className="d-flex align-items-center">
-            <div className="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" 
-                 style={{ width: '32px', height: '32px' }}>
-              <i className="bi bi-check text-white"></i>
+            <div className="bg-gradient rounded-circle d-flex align-items-center justify-content-center me-2" 
+                 style={{ 
+                   width: '36px', 
+                   height: '36px', 
+                   background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                   boxShadow: '0 2px 8px rgba(40, 167, 69, 0.3)'
+                 }}>
+              <i className="bi bi-check-lg text-white fw-bold"></i>
             </div>
-            testportal
+            <span className="fw-bold" style={{ background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              testportal
+            </span>
           </BSNavbar.Brand>
         </LinkContainer>
         

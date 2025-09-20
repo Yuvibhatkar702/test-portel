@@ -189,7 +189,7 @@ function CreateTest() {
   };
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1200px' }}>
       {loadingTest ? (
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
           <div className="spinner-border text-success" role="status">
@@ -219,7 +219,7 @@ function CreateTest() {
           </Card.Header>
           <Card.Body>
             <Row>
-              <Col md={8}>
+              <Col lg={8} md={7} sm={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Test Title *</Form.Label>
                   <Form.Control
@@ -232,7 +232,7 @@ function CreateTest() {
                   />
                 </Form.Group>
               </Col>
-              <Col md={4}>
+              <Col lg={4} md={5} sm={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Category</Form.Label>
                   <Form.Select
@@ -264,7 +264,7 @@ function CreateTest() {
             </Form.Group>
 
             <Row>
-              <Col md={6}>
+              <Col lg={6} md={6} sm={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Time Limit (minutes)</Form.Label>
                   <Form.Control
@@ -280,7 +280,7 @@ function CreateTest() {
                   </Form.Text>
                 </Form.Group>
               </Col>
-              <Col md={6}>
+              <Col lg={6} md={6} sm={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Attempts Allowed</Form.Label>
                   <Form.Control
@@ -301,7 +301,7 @@ function CreateTest() {
         </Card>
 
         <Card className="mb-4">
-          <Card.Header className="d-flex justify-content-between align-items-center">
+          <Card.Header className="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h5 className="mb-0">Questions ({questions.length})</h5>
             <Button variant="outline-success" size="sm" onClick={addQuestion}>
               <i className="bi bi-plus"></i> Add Question
@@ -309,8 +309,8 @@ function CreateTest() {
           </Card.Header>
           <Card.Body>
             {questions.map((question, questionIndex) => (
-              <Card key={questionIndex} className="mb-3">
-                <Card.Header className="d-flex justify-content-between align-items-center">
+              <Card key={questionIndex} className="mb-3 question-card">
+                <Card.Header className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <span>Question {questionIndex + 1}</span>
                   {questions.length > 1 && (
                     <Button 
@@ -338,13 +338,14 @@ function CreateTest() {
                   <Form.Group className="mb-3">
                     <Form.Label>Options</Form.Label>
                     {question.options.map((option, optionIndex) => (
-                      <div key={optionIndex} className="d-flex align-items-center mb-2">
+                      <div key={optionIndex} className="d-flex align-items-center mb-2 flex-wrap gap-1">
                         <Form.Check
                           type="radio"
                           name={`correct-${questionIndex}`}
                           checked={question.correctAnswer === optionIndex}
                           onChange={() => handleQuestionChange(questionIndex, 'correctAnswer', optionIndex)}
-                          className="me-2"
+                          className="me-2 flex-shrink-0"
+                          style={{ minWidth: 'auto' }}
                         />
                         <Form.Control
                           type="text"
@@ -352,12 +353,14 @@ function CreateTest() {
                           onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
                           placeholder={`Option ${optionIndex + 1}`}
                           required
+                          className="flex-grow-1"
+                          style={{ minWidth: '200px' }}
                         />
                         {question.options.length > 2 && (
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            className="ms-2"
+                            className="ms-2 flex-shrink-0"
                             onClick={() => removeOption(questionIndex, optionIndex)}
                           >
                             <i className="bi bi-x"></i>

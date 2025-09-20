@@ -131,7 +131,7 @@ function MyAccount() {
   };
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1000px' }}>
       <Row className="mb-4">
         <Col>
           <h2 className="mb-0">

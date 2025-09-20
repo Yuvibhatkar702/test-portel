@@ -988,22 +988,22 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
 
 
   return (
-    <Container fluid>
+    <Container className="px-2" style={{ maxWidth: '1200px' }}>
       {/* Security Monitoring Bar */}
       {testStarted && (
         <Row className="bg-light border-bottom py-2 mb-3">
           <Col>
-            <div className="d-flex justify-content-between align-items-center small">
-              <div className="d-flex align-items-center gap-3">
-                <Badge bg={cameraAccess ? 'success' : 'danger'}>
+            <div className="d-flex justify-content-between align-items-center small flex-wrap gap-2">
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <Badge bg={cameraAccess ? 'success' : 'danger'} className="text-nowrap">
                   <i className="bi bi-camera-video me-1"></i>
                   Camera: {cameraAccess ? 'Active' : 'Inactive'}
                 </Badge>
-                <Badge bg={isFullscreen ? 'success' : 'warning'}>
+                <Badge bg={isFullscreen ? 'success' : 'warning'} className="text-nowrap">
                   <i className="bi bi-fullscreen me-1"></i>
                   Fullscreen: {isFullscreen ? 'On' : 'Off'}
                 </Badge>
-                <Badge bg={warningCount === 0 ? 'success' : warningCount < 3 ? 'warning' : 'danger'}>
+                <Badge bg={warningCount === 0 ? 'success' : warningCount < 3 ? 'warning' : 'danger'} className="text-nowrap">
                   <i className="bi bi-shield-exclamation me-1"></i>
                   Violations: {warningCount}
                 </Badge>
@@ -1046,7 +1046,7 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
 
       <Row>
         {/* Question Navigation Sidebar */}
-        <Col md={3}>
+        <Col lg={3} md={4} sm={12}>
           <Card className="mb-4">
             <Card.Header>
               <h6 className="mb-0">Progress</h6>
@@ -1084,7 +1084,7 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
         </Col>
 
         {/* Question Content */}
-        <Col md={9}>
+        <Col lg={9} md={8} sm={12}>
           <Card className="mb-4">
             <Card.Header>
               <h5 className="mb-0">Question {currentQuestion + 1}</h5>

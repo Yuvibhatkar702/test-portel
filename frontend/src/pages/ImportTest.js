@@ -13,23 +13,35 @@ function ImportTest() {
   const [previewData, setPreviewData] = useState(null);
 
   const sampleJSON = {
-    title: "Sample Imported Test",
-    description: "This is a test imported from JSON",
-    category: "IMPORTED",
-    timeLimit: 30,
-    attempts: 3,
+    title: "General Knowledge Assessment",
+    description: "A comprehensive assessment covering various topics including geography, science, and current events",
+    category: "GENERAL",
+    timeLimit: 45,
+    attempts: 2,
     questions: [
       {
         question: "What is the capital of France?",
         options: ["London", "Berlin", "Paris", "Madrid"],
         correctAnswer: 2,
-        points: 1
+        points: 2
       },
       {
         question: "Which planet is closest to the Sun?",
         options: ["Venus", "Mercury", "Earth", "Mars"],
         correctAnswer: 1,
-        points: 1
+        points: 2
+      },
+      {
+        question: "Who wrote the novel 'To Kill a Mockingbird'?",
+        options: ["Harper Lee", "Mark Twain", "Ernest Hemingway", "F. Scott Fitzgerald"],
+        correctAnswer: 0,
+        points: 3
+      },
+      {
+        question: "What is the largest ocean on Earth?",
+        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+        correctAnswer: 3,
+        points: 2
       }
     ]
   };
@@ -145,8 +157,10 @@ function ImportTest() {
     } else {
       content = [
         'Question,Option1,Option2,Option3,Option4,CorrectAnswer,Points',
-        '"What is the capital of France?","London","Berlin","Paris","Madrid",2,1',
-        '"Which planet is closest to the Sun?","Venus","Mercury","Earth","Mars",1,1'
+        '"What is the capital of France?","London","Berlin","Paris","Madrid",2,2',
+        '"Which planet is closest to the Sun?","Venus","Mercury","Earth","Mars",1,2',
+        '"Who wrote the novel To Kill a Mockingbird?","Harper Lee","Mark Twain","Ernest Hemingway","F. Scott Fitzgerald",0,3',
+        '"What is the largest ocean on Earth?","Atlantic Ocean","Indian Ocean","Arctic Ocean","Pacific Ocean",3,2'
       ].join('\n');
       filename = 'sample-test.csv';
       type = 'text/csv';
@@ -165,10 +179,10 @@ function ImportTest() {
   };
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1200px' }}>
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
               <h2 className="mb-0">
                 <i className="bi bi-upload me-2"></i>

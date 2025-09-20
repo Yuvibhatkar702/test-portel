@@ -110,7 +110,7 @@ function ResultsDatabase() {
 
   if (loading) {
     return (
-      <Container fluid>
+      <Container className="py-4" style={{ maxWidth: '1400px' }}>
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
           <div className="spinner-border text-success" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -121,15 +121,15 @@ function ResultsDatabase() {
   }
 
   return (
-    <Container fluid>
+    <Container className="py-4" style={{ maxWidth: '1400px' }}>
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <h2 className="mb-0">
               <i className="bi bi-database me-2"></i>
               Results Database ({filteredResults.length})
             </h2>
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2 flex-wrap">
               <Button variant="outline-success" onClick={exportResults}>
                 <i className="bi bi-download me-1"></i>
                 Export CSV
@@ -143,8 +143,8 @@ function ResultsDatabase() {
         </Col>
       </Row>
 
-      <Row className="mb-4">
-        <Col md={4}>
+      <Row className="mb-4 g-3">
+        <Col lg={4} md={6} sm={12}>
           <Form.Group>
             <Form.Label className="small text-muted">Filter by Test</Form.Label>
             <Form.Select
@@ -158,7 +158,7 @@ function ResultsDatabase() {
             </Form.Select>
           </Form.Group>
         </Col>
-        <Col md={8}>
+        <Col lg={8} md={6} sm={12}>
           <Form.Group>
             <Form.Label className="small text-muted">Search Results</Form.Label>
             <InputGroup>
