@@ -393,13 +393,22 @@ router.post('/:id/submit', async (req, res) => {
         correctAnswers++;
       }
 
+      // Ensure correctAnswer is always a string, never undefined
+      const correctAnswerText = correctOption >= 0 && question.options[correctOption] 
+        ? question.options[correctOption].text 
+        : 'No correct answer defined';
+
+      const userAnswerText = userAnswer >= 0 && question.options[userAnswer] 
+        ? question.options[userAnswer].text 
+        : 'Not answered';
+
       detailedResults.push({
         questionIndex: index,
-        question: question.questionText,
-        userAnswer: userAnswer >= 0 ? question.options[userAnswer]?.text : 'Not answered',
-        correctAnswer: question.options[correctOption]?.text,
+        question: question.questionText || 'Question text not available',
+        userAnswer: userAnswerText,
+        correctAnswer: correctAnswerText,
         isCorrect,
-        marks: isCorrect ? question.marks : 0
+        marks: isCorrect ? (question.marks || 1) : 0
       });
     });
 
@@ -441,24 +450,36 @@ router.post('/:id/submit', async (req, res) => {
       $inc: { totalAttempts: 1 }
     });
 
-    res.status(201).json({
-      message: 'Test submitted successfully',
-      result: {
-        _id: result._id,
-        correctAnswers,
-        totalQuestions,
-        percentage,
-        obtainedMarks,
-        totalMarks,
-        timeTaken,
-        detailedResults: detailedResults.map(r => ({
-          question: r.question,
-          userAnswer: r.userAnswer,
-          correctAnswer: r.correctAnswer,
-          isCorrect: r.isCorrect
-        }))
-      }
-    });
+    // For shared link submissions, return minimal information
+    if (accessMethod === 'shared_link') {
+      res.status(201).json({
+        message: 'Test submitted successfully',
+        submissionId: result._id,
+        submittedAt: result.submittedAt,
+        testTitle: test.title,
+        isSharedLink: true
+      });
+    } else {
+      // For direct submissions, return full result details (admin view)
+      res.status(201).json({
+        message: 'Test submitted successfully',
+        result: {
+          _id: result._id,
+          correctAnswers,
+          totalQuestions,
+          percentage,
+          obtainedMarks,
+          totalMarks,
+          timeTaken,
+          detailedResults: detailedResults.map(r => ({
+            question: r.question,
+            userAnswer: r.userAnswer,
+            correctAnswer: r.correctAnswer,
+            isCorrect: r.isCorrect
+          }))
+        }
+      });
+    }
 
   } catch (error) {
     console.error('Error submitting test:', error.message);

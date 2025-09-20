@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, Form, Badge, InputGroup, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Button, Form, Badge, InputGroup, Alert, Modal, ListGroup } from 'react-bootstrap';
 import TestCard from '../components/TestCard';
 import { testsAPI } from '../services/api';
 
@@ -11,6 +11,8 @@ function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     loadTests();
@@ -23,6 +25,10 @@ function Dashboard() {
       const response = await testsAPI.getAllTests();
       setTests(response.data);
       setFilteredTests(response.data);
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(response.data.map(test => test.category))].filter(Boolean);
+      setCategories(uniqueCategories);
     } catch (err) {
       console.error('Error loading tests:', err);
       setError('Failed to load tests. Please try again.');
@@ -31,6 +37,10 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleManageCategories = () => {
+    setShowCategoryModal(true);
   };
 
   useEffect(() => {
@@ -122,21 +132,23 @@ function Dashboard() {
                 className="bg-white"
               >
                 <option value="All categories">All categories</option>
-                <option value="UNCATEGORIZED">Uncategorized</option>
-                <option value="SALES">Sales</option>
-                <option value="HR">HR</option>
+                {categories.map((category, index) => (
+                  <option key={index} value={category}>{category}</option>
+                ))}
               </Form.Select>
             </Form.Group>
           </Col>
           <Col md={2}>
-            <Button 
-              variant="link" 
-              className="text-primary p-0 text-decoration-none d-flex align-items-center"
-              onClick={() => alert('Manage categories functionality - Add your category management logic here')}
-              style={{ fontSize: '14px' }}
-            >
-              ⚙️ <span className="ms-2">Manage categories</span>
-            </Button>
+            <Form.Group>
+              <Form.Label className="text-muted small">Actions</Form.Label>
+              <Button 
+                className="btn-manage-categories d-flex align-items-center justify-content-center w-100"
+                onClick={handleManageCategories}
+              >
+                <i className="bi bi-gear me-2" style={{ fontSize: '12px' }}></i>
+                <span style={{ fontSize: '13px' }}>Manage categories</span>
+              </Button>
+            </Form.Group>
           </Col>
           <Col md={3}>
             <Form.Group>
@@ -147,9 +159,9 @@ function Dashboard() {
                 className="bg-white"
               >
                 <option value="All">All</option>
-                <option value="FROZEN">Frozen</option>
-                <option value="ACTIVE">Active</option>
-                <option value="DRAFT">Draft</option>
+                <option value="Frozen">Frozen</option>
+                <option value="Active">Active</option>
+                <option value="Draft">Draft</option>
               </Form.Select>
             </Form.Group>
           </Col>
@@ -203,6 +215,56 @@ function Dashboard() {
           </Row>
         )}
       </Container>
+
+      {/* Category Management Modal */}
+      <Modal show={showCategoryModal} onHide={() => setShowCategoryModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="bi bi-gear me-2"></i>
+            Manage Categories
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="mb-3">
+            <h6 className="text-muted">Current Categories</h6>
+            {categories.length > 0 ? (
+              <ListGroup>
+                {categories.map((category, index) => (
+                  <ListGroup.Item 
+                    key={index}
+                    className="d-flex justify-content-between align-items-center"
+                  >
+                    <span>{category}</span>
+                    <Badge bg="success" className="badge-status">
+                      {tests.filter(test => test.category === category).length} tests
+                    </Badge>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            ) : (
+              <div className="text-center py-4">
+                <i className="bi bi-folder-x display-4 text-muted mb-3"></i>
+                <p className="text-muted">No categories found. Categories are created automatically when you create tests.</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="alert alert-info">
+            <i className="bi bi-info-circle me-2"></i>
+            <strong>Note:</strong> Categories are automatically created when you create new tests. 
+            You can organize your tests by assigning them to different categories during test creation.
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowCategoryModal(false)}>
+            Close
+          </Button>
+          <Button variant="success" href="/create-test">
+            <i className="bi bi-plus-circle me-2"></i>
+            Create New Test
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

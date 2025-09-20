@@ -109,3 +109,162 @@ code {
   background-color: #157347;
   border-color: #146c43;
 }
+
+/* Form control consistency */
+.form-select, 
+.form-control,
+.input-group > .form-control {
+  height: 38px;
+  border-radius: 6px;
+}
+
+.input-group > .input-group-text {
+  height: 38px;
+  border-radius: 6px 0 0 6px;
+}
+
+.form-label.small {
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: #6c757d;
+}
+
+/* Enhanced Manage Categories Button - Professional Design */
+.btn-manage-categories {
+  background: #28a745;
+  border: 1px solid #28a745;
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  height: 38px;
+  min-height: 38px;
+}
+
+.btn-manage-categories:hover {
+  background: #218838;
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  color: white;
+}
+
+.btn-manage-categories:focus {
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+  color: white;
+}
+
+.btn-manage-categories:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Status Badges - Clean Professional Design */
+.badge-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-shadow: none;
+  border: none;
+  text-transform: uppercase;
+}
+
+.badge-status.bg-success {
+  background: #28a745 !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.badge-status.bg-danger {
+  background: #dc3545 !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.badge-status.bg-warning {
+  background: #ffc107 !important;
+  color: #212529 !important;
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+}
+
+/* Enhanced Test Cards */
+.test-card {
+  transition: all 0.2s ease;
+  border: 1px solid #e9ecef !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.test-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+  border-color: #dee2e6 !important;
+}
+
+.test-card .card-body {
+  position: relative;
+}
+
+/* Status-based left border */
+.test-card.status-active {
+  border-left: 4px solid #28a745 !important;
+}
+
+.test-card.status-frozen {
+  border-left: 4px solid #dc3545 !important;
+}
+
+.test-card.status-draft {
+  border-left: 4px solid #ffc107 !important;
+}
+
+/* Improved dropdown styling */
+.dropdown-toggle::after {
+  display: none;
+}
+
+.dropdown-toggle {
+  font-size: 1.5rem !important;
+  line-height: 1;
+  color: #6c757d !important;
+}
+
+.dropdown-toggle:hover {
+  color: #495057 !important;
+}
+
+/* Form styling improvements */
+.form-select {
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  transition: all 0.2s ease;
+}
+
+.form-select:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.form-control {
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Hover effect for cards with ACTIVE status */
+.card:has(.badge-status.bg-success) {
+  border-left: 4px solid #28a745 !important;
+}
+
+.card:has(.badge-status.bg-success):hover {
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2) !important;
+}

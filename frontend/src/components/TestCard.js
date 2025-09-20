@@ -13,8 +13,24 @@ function TestCard({ test, onTestDeleted }) {
   };
 
   const getStatusBadge = (status) => {
+    const getBadgeVariant = (status) => {
+      switch (status?.toUpperCase()) {
+        case 'ACTIVE':
+          return 'success';
+        case 'FROZEN':
+          return 'danger';
+        case 'DRAFT':
+          return 'warning';
+        default:
+          return 'secondary';
+      }
+    };
+
     return (
-      <Badge bg="secondary" className="text-uppercase fs-6 px-2 py-1">
+      <Badge 
+        bg={getBadgeVariant(status)} 
+        className="badge-status text-uppercase fw-bold"
+      >
         {status}
       </Badge>
     );
@@ -89,10 +105,8 @@ function TestCard({ test, onTestDeleted }) {
   };
 
   return (
-    <Card className="h-100 border shadow-sm">
-      <div className="border-start border-primary border-4 position-absolute h-100"></div>
-      <Card.Body className="p-4">
-        {/* Header with status and date */}
+    <Card className={`test-card h-100 shadow-sm status-${test.status?.toLowerCase() || 'default'}`}>
+      <Card.Body className="p-4">{/* Header with status and date */}
         <div className="d-flex justify-content-between align-items-start mb-3">
           {getStatusBadge(test.status)}
           <small className="text-muted">
@@ -101,7 +115,7 @@ function TestCard({ test, onTestDeleted }) {
           <Dropdown align="end">
             <Dropdown.Toggle 
               variant="link" 
-              className="text-muted p-0 border-0" 
+              className="text-muted p-0 border-0 dropdown-toggle" 
               style={{ fontSize: '1.2rem', textDecoration: 'none' }}
               id={`dropdown-${test._id}`}
             >

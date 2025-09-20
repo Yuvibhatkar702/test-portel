@@ -107,7 +107,19 @@ const resultSchema = new mongoose.Schema({
   violations: [{
     type: {
       type: String,
-      enum: ['tab_switch', 'camera_lost', 'fullscreen_exit', 'copy_attempt', 'right_click']
+      // Accepted violation type identifiers. Frontend should send these snake_case values.
+      // Legacy or display names are mapped in frontend before submission.
+      enum: [
+        'tab_switch',
+        'camera_lost',
+        'fullscreen_exit',
+        'window_blur',
+        'window_exit',
+        'page_exit',
+        'shortcut_attempt',
+        'copy_attempt',
+        'right_click'
+      ]
     },
     timestamp: {
       type: Date,
