@@ -3,9 +3,7 @@ const router = express.Router();
 const Test = require('../models/Test');
 const Result = require('../models/Result');
 
-// @route   GET /api/debug/test-structure
-// @desc    Analyze test question structure to identify scoring issues
-// @access  Public (for debugging only)
+
 router.get('/test-structure', async (req, res) => {
   try {
     const tests = await Test.find().lean();

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Button, Form, InputGroup, Badge, Dropdown } from 'react-bootstrap';
 import { resultsAPI, testsAPI } from '../services/api';
 import ScoreDebugger from '../components/ScoreDebugger';
-import DatabaseManager from '../components/DatabaseManager';
 
 function ResultsDatabase() {
   const [results, setResults] = useState([]);
@@ -504,9 +503,6 @@ function ResultsDatabase() {
           </Col>
         </Row>
       )}
-      
-      {/* Database Management - For clearing all data */}
-      <DatabaseManager />
       
       {/* Debug Component - Temporary for diagnosing 0% score issue */}
       <ScoreDebugger />

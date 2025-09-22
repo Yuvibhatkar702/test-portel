@@ -413,9 +413,24 @@ router.post('/:id/submit', async (req, res) => {
     });
 
     const totalQuestions = test.questions.length;
-    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-    const totalMarks = test.questions.reduce((sum, q) => sum + q.marks, 0);
-    const obtainedMarks = detailedResults.reduce((sum, result) => sum + result.marks, 0);
+    
+    // Ensure correctAnswers is a valid number
+    const validCorrectAnswers = Math.max(0, parseInt(correctAnswers) || 0);
+    const validTotalQuestions = Math.max(1, totalQuestions); // Prevent division by zero
+    
+    // Calculate percentage with validation
+    const percentage = Math.round((validCorrectAnswers / validTotalQuestions) * 100);
+    
+    const totalMarks = test.questions.reduce((sum, q) => sum + (q.marks || 1), 0);
+    const obtainedMarks = detailedResults.reduce((sum, result) => sum + (result.marks || 0), 0);
+
+    console.log('Result calculation debug:', {
+      correctAnswers: validCorrectAnswers,
+      totalQuestions: validTotalQuestions,
+      percentage,
+      totalMarks,
+      obtainedMarks
+    });
 
     // Create result record
     const result = new Result({
@@ -427,8 +442,8 @@ router.post('/:id/submit', async (req, res) => {
       accessMethod: accessMethod || 'direct',
       shareableLink: shareableLink || '',
       answers,
-      correctAnswers,
-      totalQuestions,
+      correctAnswers: validCorrectAnswers,
+      totalQuestions: validTotalQuestions,
       percentage,
       obtainedMarks,
       totalMarks,

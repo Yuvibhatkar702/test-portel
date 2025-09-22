@@ -8,7 +8,9 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// Increase the limit for JSON payloads to handle base64 images
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // MongoDB Connection
 const connectDB = async (retryCount = 0) => {
@@ -29,7 +31,7 @@ const connectDB = async (retryCount = 0) => {
         await mongoose.disconnect();
       }
 
-      console.log(`🔄 Attempting to connect with method ${i + 1}...`);
+  console.log(`Attempting to connect with method ${i + 1}...`);
       
       await mongoose.connect(uri, {
         useNewUrlParser: true,
@@ -42,24 +44,24 @@ const connectDB = async (retryCount = 0) => {
         w: 'majority'
       });
       
-      console.log('✅ MongoDB Atlas connected successfully');
-      console.log('🗄️  Using real database for all operations');
+  console.log('MongoDB Atlas connected successfully');
+  console.log('Using real database for all operations');
       return; // Success! Exit the function
       
     } catch (error) {
-      console.error(`❌ Connection attempt ${i + 1} failed:`, error.message);
+  console.error(`Connection attempt ${i + 1} failed:`, error.message);
     }
   }
 
   // If all connection attempts failed
-  console.error('💥 All MongoDB connection attempts failed');
-  console.log('📝 Please check your MongoDB connection string and network access');
-  console.log('🔄 Server will continue running for demonstration purposes');
-  console.log('⚠️  API calls will fail until database connection is restored');
+  console.error('All MongoDB connection attempts failed');
+  console.log('Please check your MongoDB connection string and network access');
+  console.log('Server will continue running for demonstration purposes');
+  console.log('API calls will fail until database connection is restored');
   
   // Retry after delay if we haven't exceeded max retries
   if (retryCount < maxRetries) {
-    console.log(`🔄 Retrying connection in 10 seconds... (Attempt ${retryCount + 1}/${maxRetries})`);
+  console.log(`Retrying connection in 10 seconds... (Attempt ${retryCount + 1}/${maxRetries})`);
     setTimeout(() => connectDB(retryCount + 1), 10000);
   }
 };
@@ -68,21 +70,21 @@ connectDB();
 
 // MongoDB connection event listeners
 mongoose.connection.on('connected', () => {
-  console.log('🔗 Mongoose connected to MongoDB Atlas');
+  console.log('Mongoose connected to MongoDB Atlas');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('💥 Mongoose connection error:', err.message);
+  console.error('Mongoose connection error:', err.message);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('📴 Mongoose disconnected from MongoDB Atlas');
+  console.log('Mongoose disconnected from MongoDB Atlas');
 });
 
 // Handle app termination gracefully
 process.on('SIGINT', async () => {
   await mongoose.connection.close();
-  console.log('🛑 MongoDB connection closed due to app termination');
+  console.log('MongoDB connection closed due to app termination');
   process.exit(0);
 });
 
@@ -91,8 +93,6 @@ app.use('/api/tests', require('./routes/tests'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/results', require('./routes/results'));
 app.use('/api/debug', require('./routes/debug')); // Debug routes for diagnosing scoring issues
-app.use('/api/test-fix', require('./routes/test-fix')); // Routes for fixing test question issues
-app.use('/api/database', require('./routes/database')); // Database management routes
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -121,9 +121,9 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📍 Local: http://localhost:${PORT}`);
-  console.log(`🌐 API Base: http://localhost:${PORT}/api`);
-  console.log(`💾 Database: Real MongoDB Atlas Connection Only`);
-  console.log(`📊 No dummy data - all data from database`);
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Local: http://localhost:${PORT}`);
+  console.log(`API Base: http://localhost:${PORT}/api`);
+  console.log(`Database: Real MongoDB Atlas Connection Only`);
+  console.log(`No dummy data - all data from database`);
 });

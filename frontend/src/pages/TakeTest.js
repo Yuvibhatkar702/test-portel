@@ -37,342 +37,6 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
   const [activeViolationType, setActiveViolationType] = useState(null);
   const [lastWarningTime, setLastWarningTime] = useState(0);
 
-  useEffect(() => {
-    if (preloadedTest) {
-      setTest(preloadedTest);
-      setTimeLeft(preloadedTest.duration * 60);
-      setLoading(false);
-    } else {
-      loadTest();
-    }
-    setupSecurityMonitoring();
-    return () => {
-      cleanup();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testId, preloadedTest]);
-
-  useEffect(() => {
-    console.log('Timer effect triggered. testStarted:', testStarted, 'timeLeft:', timeLeft);
-    let timer;
-    if (testStarted && timeLeft > 0 && test && test.duration > 0) {
-      console.log('Starting timer...');
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          const newTime = prev - 1;
-          console.log('Timer tick, time left:', newTime);
-          if (newTime <= 1) {
-            console.log('Time expired, triggering auto submit');
-            handleAutoSubmit();
-            return 0;
-          }
-          return newTime;
-        });
-      }, 1000);
-    } else {
-      console.log('Timer conditions not met - testStarted:', testStarted, 'timeLeft:', timeLeft, 'test duration:', test?.duration);
-    }
-    return () => {
-      if (timer) {
-        console.log('Clearing timer');
-        clearInterval(timer);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testStarted, timeLeft]);
-
-  // Security monitoring setup
-  const setupSecurityMonitoring = () => {
-    console.log('Setting up security monitoring...');
-    
-    // Remove existing listeners first to avoid duplicates
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    document.removeEventListener('contextmenu', preventRightClick);
-    document.removeEventListener('keydown', preventShortcuts);
-    window.removeEventListener('focus', handleWindowFocus);
-    window.removeEventListener('blur', handleWindowBlur);
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-    document.removeEventListener('mouseleave', handleMouseLeave);
-
-    // Add event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-    document.addEventListener('contextmenu', preventRightClick);
-    document.addEventListener('keydown', preventShortcuts, true); // Use capture phase
-    document.addEventListener('keyup', preventShortcuts, true); // Also capture keyup
-    window.addEventListener('focus', handleWindowFocus);
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    
-    // Add more aggressive event monitoring
-    document.addEventListener('focusout', (e) => {
-      if (testStarted) {
-        console.log('Focus out event detected');
-        setTimeout(() => {
-          if (!document.hasFocus()) {
-            window.focus();
-            document.body.focus();
-          }
-        }, 10);
-      }
-    }, true);
-    
-    document.addEventListener('focusin', (e) => {
-      if (testStarted) {
-        console.log('Focus in event detected');
-      }
-    }, true);
-    
-    // Try to capture window switching attempts
-    window.addEventListener('pagehide', (e) => {
-      if (testStarted) {
-        e.preventDefault();
-        recordViolation('Page Hide', 'Attempted to hide/switch page');
-        return false;
-      }
-    }, true);
-    
-    window.addEventListener('pageshow', (e) => {
-      if (testStarted) {
-        console.log('Page show event - ensuring focus');
-        window.focus();
-        document.body.focus();
-      }
-    }, true);
-    
-    // Additional detection methods - backup polling for focus issues
-    const focusInterval = setInterval(() => {
-      if (testStarted) {
-        const isHidden = document.hidden || document.webkitHidden || document.msHidden;
-        const hasFocus = document.hasFocus();
-        
-        // Aggressively try to maintain focus
-        if (isHidden || !hasFocus) {
-          console.log('Focus/visibility lost - attempting restoration');
-          window.focus();
-          document.body.focus();
-          
-          // Show warning if student is away too long
-          if (isHidden) {
-            setTimeout(() => {
-              if (document.hidden || !document.hasFocus()) {
-                showViolationWarning('🚨 Return to the exam immediately! Extended absence may result in auto-submission.');
-              }
-            }, 1000);
-          }
-        }
-        
-        // Only trigger violation recording if visibility API might have missed something
-        if (!isHidden && !hasFocus) {
-          console.log('Polling detected focus loss without tab switch');
-          recordViolation('Focus Loss', 'Focus lost without tab switch (polling backup)');
-        }
-      }
-    }, 1500); // Check every 1.5 seconds for more aggressive monitoring
-    
-    // Store interval ID for cleanup
-    window.examFocusInterval = focusInterval;
-    
-    console.log('Security monitoring setup complete');
-  };
-
-  const cleanup = () => {
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    document.removeEventListener('contextmenu', preventRightClick);
-    document.removeEventListener('keydown', preventShortcuts, true);
-    document.removeEventListener('keyup', preventShortcuts, true);
-    window.removeEventListener('focus', handleWindowFocus);
-    window.removeEventListener('blur', handleWindowBlur);
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-    document.removeEventListener('mouseleave', handleMouseLeave);
-    
-    // Remove additional event listeners
-    document.removeEventListener('focusout', () => {}, true);
-    document.removeEventListener('focusin', () => {}, true);
-    window.removeEventListener('pagehide', () => {}, true);
-    window.removeEventListener('pageshow', () => {}, true);
-    
-    // Clear focus monitoring interval
-    if (window.examFocusInterval) {
-      clearInterval(window.examFocusInterval);
-      window.examFocusInterval = null;
-    }
-    
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
-    }
-  };
-
-  const handleVisibilityChange = () => {
-    console.log('Visibility change event fired. Document hidden:', document.hidden, 'Test started:', testStarted);
-    if (testStarted && document.hidden) {
-      console.log('Tab switch detected - document is hidden');
-      recordViolation('Tab Switch', 'Student switched to another tab or window');
-      showViolationWarning('⚠️ Tab switching detected! Returning to exam window.');
-      
-      // Immediately attempt to regain focus
-      setTimeout(() => {
-        window.focus();
-        document.body.focus();
-        // Try to bring window to front
-        if (window.parent && window.parent.focus) {
-          window.parent.focus();
-        }
-      }, 50);
-      
-      // Show persistent warning
-      setTimeout(() => {
-        if (document.hidden) {
-          showViolationWarning('⚠️ Please return to the exam window immediately!');
-        }
-      }, 2000);
-    }
-    if (testStarted && !document.hidden) {
-      console.log('Tab returned to focus');
-      // Ensure focus is properly restored
-      window.focus();
-      document.body.focus();
-    }
-  };
-
-  const handleFullscreenChange = () => {
-    const isCurrentlyFullscreen = !!(
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement
-    );
-    
-    setIsFullscreen(isCurrentlyFullscreen);
-    
-    if (testStarted && !isCurrentlyFullscreen) {
-      recordViolation('Fullscreen Exit', 'Student exited fullscreen mode');
-      showViolationWarning('⚠️ Please return to fullscreen mode to continue the exam.');
-    }
-  };
-
-  const handleWindowFocus = () => {
-    if (testStarted) {
-      console.log('Window focused');
-    }
-  };
-
-  const handleBeforeUnload = (e) => {
-    if (testStarted) {
-      console.log('Page unload detected');
-      recordViolation('Page Exit', 'Student attempted to leave the exam page');
-      e.preventDefault();
-      e.returnValue = 'EXAM IN PROGRESS - Leaving will result in automatic submission!';
-      return 'EXAM IN PROGRESS - Leaving will result in automatic submission!';
-    }
-  };
-
-  const handleMouseLeave = (e) => {
-    if (testStarted && (e.clientY <= 0 || e.clientX <= 0 || 
-        e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
-      console.log('Mouse left window boundary');
-      recordViolation('Window Exit', 'Mouse cursor left the exam window');
-      showViolationWarning('⚠️ Please keep your cursor within the exam window.');
-    }
-  };
-
-  const handleWindowBlur = () => {
-    console.log('Window blur event fired. Test started:', testStarted);
-    if (testStarted) {
-      // Only record blur if document is not hidden (to avoid duplicate with tab switch)
-      if (!document.hidden) {
-        console.log('Window blur detected - focus lost to another window');
-        recordViolation('Focus Loss', 'Focus lost to another window');
-        showViolationWarning('⚠️ Focus change detected! Please keep the exam window active.');
-      } else {
-        console.log('Window blur ignored - document is hidden (tab switch already handled)');
-      }
-      
-      // Try to regain focus after a short delay
-      setTimeout(() => {
-        if (testStarted && !document.hidden) {
-          window.focus();
-          document.body.focus();
-        }
-      }, 500);
-    }
-  };
-
-
-  const preventRightClick = (e) => {
-    if (testStarted) {
-      e.preventDefault();
-      recordViolation('Right Click', 'Attempted right click context menu');
-      return false;
-    }
-  };
-
-  const preventShortcuts = (e) => {
-    if (testStarted) {
-      // Prevent common shortcuts
-      const forbiddenKeys = [
-        'F12', // Developer tools
-        'I', 'J', 'C', 'U', 'S', 'A', 'T', 'N' // When combined with Ctrl
-      ];
-      
-      // Block all function keys
-      if (e.key.startsWith('F') && e.key.length > 1) {
-        e.preventDefault();
-        e.stopPropagation();
-        recordViolation('Shortcut Attempt', `Attempted to use function key: ${e.key}`);
-        showViolationWarning('⚠️ Function keys are disabled during the exam.');
-        return false;
-      }
-      
-      // Block window switching and navigation
-      if (
-        (e.altKey && e.key === 'Tab') || // Alt+Tab
-        (e.altKey && e.key === 'F4') || // Alt+F4 (close window)
-        (e.ctrlKey && e.key === 'w') || // Ctrl+W (close tab)
-        (e.ctrlKey && e.key === 't') || // Ctrl+T (new tab)
-        (e.ctrlKey && e.key === 'n') || // Ctrl+N (new window)
-        (e.ctrlKey && e.shiftKey && e.key === 'T') || // Ctrl+Shift+T (reopen tab)
-        (e.ctrlKey && e.key === 'Tab') || // Ctrl+Tab (switch tabs)
-        (e.ctrlKey && e.shiftKey && e.key === 'Tab') || // Ctrl+Shift+Tab
-        e.key === 'F11' || // Fullscreen toggle
-        (e.key >= '1' && e.key <= '9' && e.ctrlKey) // Ctrl+1-9 (switch to tab)
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        recordViolation('Shortcut Attempt', `Attempted window switching: ${e.key}`);
-        showViolationWarning('⚠️ Window switching is blocked during the exam.');
-        return false;
-      }
-      
-      if (
-        (e.ctrlKey && forbiddenKeys.includes(e.key.toUpperCase())) ||
-        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
-        e.key === 'F5' || // Refresh
-        (e.ctrlKey && e.key === 'r') || // Refresh
-        (e.ctrlKey && e.key === 'R') // Refresh (uppercase)
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        recordViolation('Shortcut Attempt', `Attempted to use shortcut: ${e.key}`);
-        showViolationWarning('⚠️ Keyboard shortcuts are disabled during the exam.');
-        return false;
-      }
-    }
-  };
-
   const recordViolation = (type, description) => {
     const now = Date.now();
     const mappedType = {
@@ -426,14 +90,14 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
       
       if ((tabSwitchViolations >= 2) || (newCount >= 5)) {
         if (!examLocked) {
-          setViolationMessage('🚨 Too many security violations detected. Exam will be submitted automatically in 3 seconds!');
+          setViolationMessage('Too many security violations detected. Exam will be submitted automatically in 3 seconds!');
           setExamLocked(true);
           setTimeout(() => {
             handleAutoSubmit();
           }, 3000);
         }
       } else if (tabSwitchViolations === 1) {
-        showViolationWarning('⚠️ WARNING: One more tab switch will result in immediate exam submission!');
+        showViolationWarning('WARNING: One more tab switch will result in immediate exam submission!');
       }
       
       return newCount;
@@ -463,7 +127,336 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
     }, 3000);
   };
 
-  const requestCameraAccess = async () => {
+  const handleAutoSubmit = () => {
+    setViolationMessage('Time expired! Submitting exam automatically...');
+    setShowViolationModal(true);
+    setTimeout(() => {
+      submitTest(true);
+    }, 2000);
+  };
+  
+
+  useEffect(() => {
+    if (preloadedTest) {
+      setTest(preloadedTest);
+      setTimeLeft(preloadedTest.duration * 60);
+      setLoading(false);
+    } else {
+      loadTest();
+    }
+    setupSecurityMonitoring();
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testId, preloadedTest]);
+
+  useEffect(() => {
+    console.log('Timer effect triggered. testStarted:', testStarted, 'timeLeft:', timeLeft);
+    let timer;
+    if (testStarted && timeLeft > 0 && test && test.duration > 0) {
+      console.log('Starting timer...');
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          const newTime = prev - 1;
+          console.log('Timer tick, time left:', newTime);
+          if (newTime <= 1) {
+            console.log('Time expired, triggering auto submit');
+            handleAutoSubmit();
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      console.log('Timer conditions not met - testStarted:', testStarted, 'timeLeft:', timeLeft, 'test duration:', test?.duration);
+    }
+    return () => {
+      if (timer) {
+        console.log('Clearing timer');
+        clearInterval(timer);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testStarted, timeLeft]);
+
+  // Security monitoring setup
+  const setupSecurityMonitoring = () => {
+    console.log('Setting up security monitoring...');
+    
+    // Remove existing listeners first to avoid duplicates
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.removeEventListener('contextmenu', preventRightClick);
+    document.removeEventListener('keydown', preventShortcuts);
+    window.removeEventListener('focus', handleWindowFocus);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    document.removeEventListener('mouseleave', handleMouseLeave);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+    // Add event listeners
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.addEventListener('contextmenu', preventRightClick);
+    document.addEventListener('keydown', preventShortcuts, true); // Use capture phase
+    document.addEventListener('keyup', preventShortcuts, true); // Also capture keyup
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Add more aggressive event monitoring
+    document.addEventListener('focusout', (e) => {
+      if (testStarted) {
+        console.log('Focus out event detected');
+        setTimeout(() => {
+          if (!document.hasFocus()) {
+            window.focus();
+            document.body.focus();
+          }
+        }, 10);
+      }
+    }, true);
+    
+    document.addEventListener('focusin', (e) => {
+      if (testStarted) {
+        console.log('Focus in event detected');
+      }
+    }, true);
+    
+    // Try to capture window switching attempts
+    window.addEventListener('pagehide', (e) => {
+      if (testStarted) {
+        e.preventDefault();
+        recordViolation('Page Hide', 'Attempted to hide/switch page');
+        return false;
+      }
+    }, true);
+    
+    window.addEventListener('pageshow', (e) => {
+      if (testStarted) {
+        console.log('Page show event - ensuring focus');
+        window.focus();
+        document.body.focus();
+      }
+    }, true);
+    
+    // Additional detection methods - backup polling for focus issues
+    const focusInterval = setInterval(() => {
+      if (testStarted) {
+        const isHidden = document.hidden || document.webkitHidden || document.msHidden;
+        const hasFocus = document.hasFocus();
+        
+        // Aggressively try to maintain focus
+        if (isHidden || !hasFocus) {
+          console.log('Focus/visibility lost - attempting restoration');
+          window.focus();
+          document.body.focus();
+          
+          // Show warning if student is away too long
+          if (isHidden) {
+            setTimeout(() => {
+              if (document.hidden || !document.hasFocus()) {
+                showViolationWarning('Return to the exam immediately! Extended absence may result in auto-submission.');
+              }
+            }, 1000);
+          }
+        }
+        
+        // Only trigger violation recording if visibility API might have missed something
+        if (!isHidden && !hasFocus) {
+          console.log('Polling detected focus loss without tab switch');
+          recordViolation('Focus Loss', 'Focus lost without tab switch (polling backup)');
+        }
+      }
+    }, 1500); // Check every 1.5 seconds for more aggressive monitoring
+    
+    // Store interval ID for cleanup
+    window.examFocusInterval = focusInterval;
+    
+    console.log('Security monitoring setup complete');
+  };
+
+  const cleanup = () => {
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.removeEventListener('contextmenu', preventRightClick);
+    document.removeEventListener('keydown', preventShortcuts, true);
+    document.removeEventListener('keyup', preventShortcuts, true);
+    window.removeEventListener('focus', handleWindowFocus);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    document.removeEventListener('mouseleave', handleMouseLeave);
+    
+    // Remove additional event listeners
+    document.removeEventListener('focusout', () => {}, true);
+    document.removeEventListener('focusin', () => {}, true);
+    window.removeEventListener('pagehide', () => {}, true);
+    window.removeEventListener('pageshow', () => {}, true);
+    
+    // Clear focus monitoring interval
+    if (window.examFocusInterval) {
+      clearInterval(window.examFocusInterval);
+      window.examFocusInterval = null;
+    }
+    
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  };
+
+  const handleFullscreenChange = () => {
+    const isCurrentlyFullscreen = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    
+    setIsFullscreen(isCurrentlyFullscreen);
+    
+    if (testStarted && !isCurrentlyFullscreen) {
+      recordViolation('Fullscreen Exit', 'Student exited fullscreen mode');
+  showViolationWarning('Please return to fullscreen mode to continue the exam.');
+    }
+  };
+
+  const handleWindowFocus = () => {
+    if (testStarted) {
+      console.log('Window focused');
+    }
+  };
+
+  const handleBeforeUnload = (e) => {
+    if (testStarted) {
+      console.log('Page unload detected');
+      recordViolation('Page Exit', 'Student attempted to leave the exam page');
+      e.preventDefault();
+      e.returnValue = 'EXAM IN PROGRESS - Leaving will result in automatic submission!';
+      return 'EXAM IN PROGRESS - Leaving will result in automatic submission!';
+    }
+  };
+
+  const handleMouseLeave = (e) => {
+    if (testStarted && (e.clientY <= 0 || e.clientX <= 0 || 
+        e.clientX >= window.innerWidth || e.clientY >= window.innerHeight)) {
+      console.log('Mouse left window boundary');
+      recordViolation('Window Exit', 'Mouse cursor left the exam window');
+  showViolationWarning('Please keep your cursor within the exam window.');
+    }
+  };
+
+  const handleWindowBlur = () => {
+    console.log('Window blur event fired. Test started:', testStarted);
+    if (testStarted) {
+      // Only record blur if document is not hidden (to avoid duplicate with tab switch)
+      if (!document.hidden) {
+        console.log('Window blur detected - focus lost to another window');
+        recordViolation('Focus Loss', 'Focus lost to another window');
+  showViolationWarning('Focus change detected! Please keep the exam window active.');
+      } else {
+        console.log('Window blur ignored - document is hidden (tab switch already handled)');
+      }
+      
+      // Try to regain focus after a short delay
+      setTimeout(() => {
+        if (testStarted && !document.hidden) {
+          window.focus();
+          document.body.focus();
+        }
+      }, 500);
+    }
+  };
+
+  // Page Visibility API: detect tab switch/minimize and return
+  const handleVisibilityChange = () => {
+    if (!testStarted) return;
+    if (document.hidden) {
+      console.log('Document hidden: tab switch or minimize detected');
+      setTabSwitchCount(prev => prev + 1);
+      recordViolation('Tab Switch', 'Switched tabs, minimized, or window lost visibility');
+    } else {
+      console.log('Document visible again');
+      // Try to restore focus on return
+      setTimeout(() => {
+        if (testStarted) {
+          window.focus();
+          document.body.focus();
+        }
+      }, 100);
+    }
+  };
+
+
+  const preventRightClick = (e) => {
+    if (testStarted) {
+      e.preventDefault();
+      recordViolation('Right Click', 'Attempted right click context menu');
+      return false;
+    }
+  };
+
+  const preventShortcuts = (e) => {
+    if (testStarted) {
+      // Prevent common shortcuts
+      const forbiddenKeys = [
+        'F12', // Developer tools
+        'I', 'J', 'C', 'U', 'S', 'A', 'T', 'N' // When combined with Ctrl
+      ];
+      
+      // Block all function keys
+      if (e.key.startsWith('F') && e.key.length > 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        recordViolation('Shortcut Attempt', `Attempted to use function key: ${e.key}`);
+  showViolationWarning('Function keys are disabled during the exam.');
+        return false;
+      }
+      
+      // Block window switching and navigation
+      if (
+        (e.altKey && e.key === 'Tab') || // Alt+Tab
+        (e.altKey && e.key === 'F4') || // Alt+F4 (close window)
+        (e.ctrlKey && e.key === 'w') || // Ctrl+W (close tab)
+        (e.ctrlKey && e.key === 't') || // Ctrl+T (new tab)
+        (e.ctrlKey && e.key === 'n') || // Ctrl+N (new window)
+        (e.ctrlKey && e.shiftKey && e.key === 'T') || // Ctrl+Shift+T (reopen tab)
+        (e.ctrlKey && e.key === 'Tab') || // Ctrl+Tab (switch tabs)
+        (e.ctrlKey && e.shiftKey && e.key === 'Tab') || // Ctrl+Shift+Tab
+        e.key === 'F11' || // Fullscreen toggle
+        (e.key >= '1' && e.key <= '9' && e.ctrlKey) // Ctrl+1-9 (switch to tab)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        recordViolation('Shortcut Attempt', `Attempted window switching: ${e.key}`);
+  showViolationWarning('Window switching is blocked during the exam.');
+        return false;
+      }
+      
+      if (
+        (e.ctrlKey && forbiddenKeys.includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        e.key === 'F5' || // Refresh
+        (e.ctrlKey && e.key === 'r') || // Refresh
+        (e.ctrlKey && e.key === 'R') // Refresh (uppercase)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        recordViolation('Shortcut Attempt', `Attempted to use shortcut: ${e.key}`);
+  showViolationWarning('Keyboard shortcuts are disabled during the exam.');
+        return false;
+      }
+    }
+  };  const requestCameraAccess = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -583,13 +576,13 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
       setIsFullscreen(isCurrentlyFullscreen);
       
       if (!isCurrentlyFullscreen) {
-        showViolationWarning('⚠️ Fullscreen mode recommended. Please avoid switching tabs during the exam.');
+        showViolationWarning('Fullscreen mode is recommended. Please avoid switching tabs during the exam.');
       }
     }, 500);
     
     // Show initial instructions
     setTimeout(() => {
-      showViolationWarning('📹 Exam monitoring is now active. Stay in fullscreen mode and avoid switching tabs.');
+      showViolationWarning('Exam monitoring is now active. Please stay in fullscreen mode and avoid switching tabs.');
     }, 1000);
   };
 
@@ -614,14 +607,6 @@ function TakeTest({ testId: propTestId, preloadedTest, isSharedLink = false, stu
 
   const goToQuestion = (questionIndex) => {
     setCurrentQuestion(questionIndex);
-  };
-
-  const handleAutoSubmit = () => {
-    setViolationMessage('⏰ Time expired! Submitting exam automatically...');
-    setShowViolationModal(true);
-    setTimeout(() => {
-      submitTest(true);
-    }, 2000);
   };
 
   const mapSubmissionReason = ({ autoSubmit, locked }) => {

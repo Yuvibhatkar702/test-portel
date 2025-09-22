@@ -107,8 +107,8 @@ function SharedLinkResultsDashboard() {
         result.rollNumber || '',
         result.phone || '',
         result.testTitle,
-        `${result.percentage}%`,
-        result.grade,
+        `${isNaN(result.percentage) ? '0' : result.percentage}%`,
+        result.grade || 'N/A',
         result.isPassed ? 'Passed' : 'Failed',
         result.timeTakenFormatted,
         result.totalViolations || 0,
@@ -131,7 +131,10 @@ function SharedLinkResultsDashboard() {
     const passed = filteredResults.filter(r => r.isPassed).length;
     const failed = total - passed;
     const avgScore = total > 0 ? 
-      (filteredResults.reduce((sum, r) => sum + r.percentage, 0) / total).toFixed(1) : 0;
+      (filteredResults.reduce((sum, r) => {
+        const percentage = isNaN(r.percentage) ? 0 : r.percentage;
+        return sum + percentage;
+      }, 0) / total).toFixed(1) : 0;
     const withViolations = filteredResults.filter(r => (r.totalViolations || 0) > 0).length;
 
     return { total, passed, failed, avgScore, withViolations };
@@ -322,8 +325,10 @@ function SharedLinkResultsDashboard() {
                       </td>
                       <td>
                         <div>
-                          <div className="fw-bold">{result.percentage}%</div>
-                          <Badge bg="info">{result.grade}</Badge>
+                          <div className="fw-bold">
+                            {isNaN(result.percentage) ? '0' : result.percentage}%
+                          </div>
+                          <Badge bg="info">{result.grade || 'N/A'}</Badge>
                         </div>
                       </td>
                       <td>{getStatusBadge(result)}</td>

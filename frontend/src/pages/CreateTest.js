@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Alert, Image, Modal } from 'react-bootstrap';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { testsAPI } from '../services/api';
 
@@ -19,15 +19,24 @@ function CreateTest() {
   const [questions, setQuestions] = useState([
     {
       question: '',
+      questionImage: null,
+      questionImagePreview: null,
       options: ['', ''],
+      optionImages: [null, null],
+      optionImagePreviews: [null, null],
       correctAnswer: 0,
-      points: 1
+      points: 1,
+      questionType: 'text' // 'text', 'image', 'mixed'
     }
   ]);
   const [loading, setLoading] = useState(false);
   const [loadingTest, setLoadingTest] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [currentImageType, setCurrentImageType] = useState(''); // 'question' or 'option'
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentOptionIndex, setCurrentOptionIndex] = useState(0);
 
   // Load test data for editing
   useEffect(() => {
@@ -53,9 +62,14 @@ function CreateTest() {
       if (test.questions && test.questions.length > 0) {
         const formattedQuestions = test.questions.map(q => ({
           question: q.questionText || '',
+          questionImage: q.questionImage || null,
+          questionImagePreview: q.questionImage || null,
           options: q.options.map(opt => opt.text || ''),
+          optionImages: q.options.map(opt => opt.image || null),
+          optionImagePreviews: q.options.map(opt => opt.image || null),
           correctAnswer: q.options.findIndex(opt => opt.isCorrect) || 0,
-          points: q.marks || 1
+          points: q.marks || 1,
+          questionType: q.questionImage ? (q.questionText ? 'mixed' : 'image') : 'text'
         }));
         setQuestions(formattedQuestions);
       }
@@ -89,6 +103,8 @@ function CreateTest() {
   const addOption = (questionIndex) => {
     const updatedQuestions = [...questions];
     updatedQuestions[questionIndex].options.push('');
+    updatedQuestions[questionIndex].optionImages.push(null);
+    updatedQuestions[questionIndex].optionImagePreviews.push(null);
     setQuestions(updatedQuestions);
   };
 
@@ -96,6 +112,8 @@ function CreateTest() {
     const updatedQuestions = [...questions];
     if (updatedQuestions[questionIndex].options.length > 2) {
       updatedQuestions[questionIndex].options.splice(optionIndex, 1);
+      updatedQuestions[questionIndex].optionImages.splice(optionIndex, 1);
+      updatedQuestions[questionIndex].optionImagePreviews.splice(optionIndex, 1);
       // Adjust correct answer if necessary
       if (updatedQuestions[questionIndex].correctAnswer >= optionIndex) {
         updatedQuestions[questionIndex].correctAnswer = Math.max(0, updatedQuestions[questionIndex].correctAnswer - 1);
@@ -104,14 +122,71 @@ function CreateTest() {
     }
   };
 
+  // Image handling functions
+  const handleQuestionImageUpload = (questionIndex, file) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const updatedQuestions = [...questions];
+        updatedQuestions[questionIndex].questionImage = file;
+        updatedQuestions[questionIndex].questionImagePreview = e.target.result;
+        updatedQuestions[questionIndex].questionType = 
+          updatedQuestions[questionIndex].question ? 'mixed' : 'image';
+        setQuestions(updatedQuestions);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleOptionImageUpload = (questionIndex, optionIndex, file) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const updatedQuestions = [...questions];
+        updatedQuestions[questionIndex].optionImages[optionIndex] = file;
+        updatedQuestions[questionIndex].optionImagePreviews[optionIndex] = e.target.result;
+        setQuestions(updatedQuestions);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeQuestionImage = (questionIndex) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[questionIndex].questionImage = null;
+    updatedQuestions[questionIndex].questionImagePreview = null;
+    updatedQuestions[questionIndex].questionType = 'text';
+    setQuestions(updatedQuestions);
+  };
+
+  const removeOptionImage = (questionIndex, optionIndex) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[questionIndex].optionImages[optionIndex] = null;
+    updatedQuestions[questionIndex].optionImagePreviews[optionIndex] = null;
+    setQuestions(updatedQuestions);
+  };
+
+  const [imageModalShow, setImageModalShow] = useState(false);
+  const [modalImageSrc, setModalImageSrc] = useState('');
+
+  const openImageModal = (imageSrc) => {
+    setModalImageSrc(imageSrc);
+    setImageModalShow(true);
+  };
+
   const addQuestion = () => {
     setQuestions([
       ...questions,
       {
         question: '',
+        questionImage: null,
+        questionImagePreview: null,
         options: ['', ''],
+        optionImages: [null, null],
+        optionImagePreviews: [null, null],
         correctAnswer: 0,
-        points: 1
+        points: 1,
+        questionType: 'text'
       }
     ]);
   };
@@ -136,27 +211,97 @@ function CreateTest() {
       return;
     }
 
-    if (questions.some(q => !q.question.trim())) {
-      setError('All questions must have text');
+    // Check if questions have either text or image
+    if (questions.some(q => !q.question.trim() && !q.questionImage)) {
+      setError('All questions must have either text or an image');
       setLoading(false);
       return;
     }
 
-    if (questions.some(q => q.options.some(opt => !opt.trim()))) {
-      setError('All options must be filled');
+    // Check if options have either text or image
+    if (questions.some(q => q.options.some((opt, idx) => !opt.trim() && !q.optionImages[idx]))) {
+      setError('All options must have either text or an image');
       setLoading(false);
       return;
     }
 
     try {
-      // Format questions for backend
-      const formattedQuestions = questions.map(q => ({
-        questionText: q.question,
-        options: q.options.map((text, index) => ({
-          text,
-          isCorrect: index === q.correctAnswer
-        })),
-        marks: q.points
+      // Helper function to compress and convert image to base64
+      const compressImage = (file, maxWidth = 800, quality = 0.8) => {
+        return new Promise((resolve, reject) => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          img.onload = () => {
+            // Calculate new dimensions while maintaining aspect ratio
+            const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+            canvas.width = img.width * ratio;
+            canvas.height = img.height * ratio;
+            
+            // Draw and compress the image
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64 with compression
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedBase64);
+          };
+          
+          img.onerror = reject;
+          img.src = URL.createObjectURL(file);
+        });
+      };
+
+      // Helper function to convert file to base64 (fallback for non-images)
+      const fileToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+        });
+      };
+
+      // Format questions for backend with image support and compression
+      const formattedQuestions = await Promise.all(questions.map(async (q) => {
+        // Convert and compress question image if present
+        let questionImageData = null;
+        if (q.questionImage) {
+          try {
+            // Try to compress if it's an image
+            questionImageData = await compressImage(q.questionImage);
+          } catch (error) {
+            // Fallback to regular base64 conversion
+            questionImageData = await fileToBase64(q.questionImage);
+          }
+        }
+
+        // Convert and compress option images if present
+        const optionData = await Promise.all(q.options.map(async (text, index) => {
+          let optionImageData = null;
+          if (q.optionImages[index]) {
+            try {
+              // Try to compress if it's an image
+              optionImageData = await compressImage(q.optionImages[index], 400, 0.7); // Smaller size for options
+            } catch (error) {
+              // Fallback to regular base64 conversion
+              optionImageData = await fileToBase64(q.optionImages[index]);
+            }
+          }
+
+          return {
+            text,
+            image: optionImageData,
+            isCorrect: index === q.correctAnswer
+          };
+        }));
+
+        return {
+          questionText: q.question,
+          questionImage: questionImageData,
+          options: optionData,
+          marks: q.points
+        };
       }));
 
       const testData = {
@@ -324,47 +469,124 @@ function CreateTest() {
                 </Card.Header>
                 <Card.Body>
                   <Form.Group className="mb-3">
-                    <Form.Label>Question Text *</Form.Label>
+                    <Form.Label>Question Text</Form.Label>
                     <Form.Control
                       as="textarea"
                       rows={2}
                       value={question.question}
                       onChange={(e) => handleQuestionChange(questionIndex, 'question', e.target.value)}
                       placeholder="Enter your question"
-                      required
                     />
+                  </Form.Group>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Question Image</Form.Label>
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      <Form.Control
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            handleQuestionImageUpload(questionIndex, file);
+                          }
+                        }}
+                        size="sm"
+                        style={{ maxWidth: '200px' }}
+                      />
+                      {question.questionImagePreview && (
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => removeQuestionImage(questionIndex)}
+                          title="Remove image"
+                        >
+                          <i className="bi bi-trash"></i>
+                        </Button>
+                      )}
+                    </div>
+                    {question.questionImagePreview && (
+                      <div className="mt-2">
+                        <Image
+                          src={question.questionImagePreview}
+                          alt="Question preview"
+                          thumbnail
+                          style={{ maxWidth: '200px', maxHeight: '150px', cursor: 'pointer' }}
+                          onClick={() => openImageModal(question.questionImagePreview)}
+                        />
+                      </div>
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-3">
                     <Form.Label>Options</Form.Label>
                     {question.options.map((option, optionIndex) => (
-                      <div key={optionIndex} className="d-flex align-items-center mb-2 flex-wrap gap-1">
-                        <Form.Check
-                          type="radio"
-                          name={`correct-${questionIndex}`}
-                          checked={question.correctAnswer === optionIndex}
-                          onChange={() => handleQuestionChange(questionIndex, 'correctAnswer', optionIndex)}
-                          className="me-2 flex-shrink-0"
-                          style={{ minWidth: 'auto' }}
-                        />
-                        <Form.Control
-                          type="text"
-                          value={option}
-                          onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
-                          placeholder={`Option ${optionIndex + 1}`}
-                          required
-                          className="flex-grow-1"
-                          style={{ minWidth: '200px' }}
-                        />
-                        {question.options.length > 2 && (
-                          <Button
-                            variant="outline-danger"
+                      <div key={optionIndex} className="mb-3">
+                        <div className="d-flex align-items-center mb-2 flex-wrap gap-1">
+                          <Form.Check
+                            type="radio"
+                            name={`correct-${questionIndex}`}
+                            checked={question.correctAnswer === optionIndex}
+                            onChange={() => handleQuestionChange(questionIndex, 'correctAnswer', optionIndex)}
+                            className="me-2 flex-shrink-0"
+                            style={{ minWidth: 'auto' }}
+                          />
+                          <Form.Control
+                            type="text"
+                            value={option}
+                            onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
+                            placeholder={`Option ${optionIndex + 1} text`}
+                            className="flex-grow-1"
+                            style={{ minWidth: '200px' }}
+                          />
+                          {question.options.length > 2 && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="ms-2 flex-shrink-0"
+                              onClick={() => removeOption(questionIndex, optionIndex)}
+                            >
+                              <i className="bi bi-x"></i>
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="d-flex align-items-center gap-2 ms-4">
+                          <Form.Control
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                handleOptionImageUpload(questionIndex, optionIndex, file);
+                              }
+                            }}
                             size="sm"
-                            className="ms-2 flex-shrink-0"
-                            onClick={() => removeOption(questionIndex, optionIndex)}
-                          >
-                            <i className="bi bi-x"></i>
-                          </Button>
+                            style={{ maxWidth: '180px' }}
+                            placeholder="Option image"
+                          />
+                          {question.optionImagePreviews[optionIndex] && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => removeOptionImage(questionIndex, optionIndex)}
+                              title="Remove option image"
+                            >
+                              <i className="bi bi-trash"></i>
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {question.optionImagePreviews[optionIndex] && (
+                          <div className="mt-2 ms-4">
+                            <Image
+                              src={question.optionImagePreviews[optionIndex]}
+                              alt={`Option ${optionIndex + 1} preview`}
+                              thumbnail
+                              style={{ maxWidth: '120px', maxHeight: '80px', cursor: 'pointer' }}
+                              onClick={() => openImageModal(question.optionImagePreviews[optionIndex])}
+                            />
+                          </div>
                         )}
                       </div>
                     ))}
@@ -410,6 +632,25 @@ function CreateTest() {
           </Button>
         </div>
       </Form>
+
+      {/* Image Modal */}
+      <Modal
+        show={imageModalShow}
+        onHide={() => setImageModalShow(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Image Preview</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          <Image
+            src={modalImageSrc}
+            alt="Full size preview"
+            style={{ maxWidth: '100%', maxHeight: '70vh' }}
+          />
+        </Modal.Body>
+      </Modal>
         </>
       )}
     </Container>

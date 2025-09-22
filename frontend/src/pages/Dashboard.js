@@ -170,7 +170,7 @@ function Dashboard() {
               <Form.Label className="text-muted small">Search</Form.Label>
               <InputGroup>
                 <InputGroup.Text className="bg-white">
-                  🔍
+                  <i className="bi bi-search"></i>
                 </InputGroup.Text>
                 <Form.Control
                   type="text"

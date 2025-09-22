@@ -3,14 +3,22 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   questionText: {
     type: String,
-    required: true,
-    trim: true
+    trim: true,
+    default: ''
+  },
+  questionImage: {
+    type: String, // Base64 encoded image data
+    default: null
   },
   options: [{
     text: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
+      default: ''
+    },
+    image: {
+      type: String, // Base64 encoded image data
+      default: null
     },
     isCorrect: {
       type: Boolean,
@@ -193,9 +201,24 @@ testSchema.pre('save', function(next) {
   if (this.questions && this.questions.length > 0 && (this.isModified('questions') || this.isNew)) {
     this.totalMarks = this.questions.reduce((sum, question) => sum + question.marks, 0);
     
-    // Validate that each question has at least one correct answer
+    // Validate that each question has either text or image
     for (let question of this.questions) {
+      if (!question.questionText && !question.questionImage) {
+        const err = new Error('Each question must have either text or an image');
+        return next(err);
+      }
+      
+      // Validate options
       if (question.options && question.options.length > 0) {
+        // Check that each option has either text or image
+        for (let option of question.options) {
+          if (!option.text && !option.image) {
+            const err = new Error('Each option must have either text or an image');
+            return next(err);
+          }
+        }
+        
+        // Validate that each question has at least one correct answer
         const hasCorrectAnswer = question.options.some(option => option.isCorrect === true);
         if (!hasCorrectAnswer) {
           const err = new Error('Each question must have at least one correct answer');

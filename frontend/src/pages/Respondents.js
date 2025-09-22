@@ -224,9 +224,9 @@ function Respondents() {
                               const emailDetails = `Email: ${email}\nSubject: ${subject}\n\nMessage:\n${body}`;
                               
                               navigator.clipboard.writeText(emailDetails).then(() => {
-                                alert(`📧 Contact Details Copied!\n\nTo: ${email}\n\nAll contact information has been copied to your clipboard.\n\nYou can now:\n1. Open your email application\n2. Paste the details (Ctrl+V)\n3. Send the message\n\nAlternatively, just copy this email: ${email}`);
+                                alert(`Contact Details Copied!\n\nTo: ${email}\n\nAll contact information has been copied to your clipboard.\n\nYou can now:\n1. Open your email application\n2. Paste the details (Ctrl+V)\n3. Send the message\n\nAlternatively, just copy this email: ${email}`);
                               }).catch(() => {
-                                alert(`📧 Contact ${respondent.name}\n\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${body}\n\nPlease copy this information and use your email application to send the message.`);
+                                alert(`Contact ${respondent.name}\n\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${body}\n\nPlease copy this information and use your email application to send the message.`);
                               });
                             }}
                           >

@@ -30,7 +30,7 @@ function Sidebar() {
           <div className="d-flex align-items-center" style={{ cursor: 'pointer' }}>
             <div className="bg-success rounded-circle d-flex align-items-center justify-content-center me-2" 
                  style={{ width: '32px', height: '32px', minWidth: '32px' }}>
-              <span className="text-white fw-bold">✓</span>
+              <i className="bi bi-check text-white"></i>
             </div>
             {!isCollapsed && (
               <span className="fw-bold text-dark h5 mb-0">testportal</span>

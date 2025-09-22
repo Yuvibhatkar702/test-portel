@@ -91,19 +91,27 @@ function TestResults() {
                 
                 <Row className="text-center mb-4">
                   <Col md={3}>
-                    <div className="display-4 text-success">{result.percentage}%</div>
+                    <div className="display-4 text-success">
+                      {isNaN(result.percentage) ? '0' : result.percentage}%
+                    </div>
                     <small className="text-muted">Score</small>
                   </Col>
                   <Col md={3}>
-                    <div className="display-4">{result.correctAnswers}</div>
+                    <div className="display-4">
+                      {isNaN(result.correctAnswers) ? '0' : result.correctAnswers}
+                    </div>
                     <small className="text-muted">Correct</small>
                   </Col>
                   <Col md={3}>
-                    <div className="display-4">{result.totalQuestions - result.correctAnswers}</div>
+                    <div className="display-4">
+                      {isNaN(result.totalQuestions - result.correctAnswers) ? '0' : (result.totalQuestions - result.correctAnswers)}
+                    </div>
                     <small className="text-muted">Incorrect</small>
                   </Col>
                   <Col md={3}>
-                    <div className="display-4">{result.totalQuestions}</div>
+                    <div className="display-4">
+                      {isNaN(result.totalQuestions) ? '0' : result.totalQuestions}
+                    </div>
                     <small className="text-muted">Total</small>
                   </Col>
                 </Row>
@@ -214,11 +222,14 @@ function TestResults() {
                           </td>
                         )}
                         <td>
-                          <strong>{result.correctAnswers}/{result.totalQuestions}</strong>
+                          <strong>
+                            {isNaN(result.correctAnswers) ? '0' : result.correctAnswers}/
+                            {isNaN(result.totalQuestions) ? '0' : result.totalQuestions}
+                          </strong>
                         </td>
                         <td>
-                          <Badge bg={getScoreBadgeVariant(result.percentage)} className="fs-6">
-                            {result.percentage}%
+                          <Badge bg={getScoreBadgeVariant(isNaN(result.percentage) ? 0 : result.percentage)} className="fs-6">
+                            {isNaN(result.percentage) ? '0' : result.percentage}%
                           </Badge>
                         </td>
                         <td>
@@ -260,25 +271,28 @@ function TestResults() {
                 <Row className="text-center">
                   <Col md={3}>
                     <div className="h3 text-primary">
-                      {Math.round(results.reduce((sum, result) => sum + result.percentage, 0) / results.length)}%
+                      {Math.round(results.reduce((sum, result) => {
+                        const percentage = isNaN(result.percentage) ? 0 : result.percentage;
+                        return sum + percentage;
+                      }, 0) / results.length) || 0}%
                     </div>
                     <small className="text-muted">Average Score</small>
                   </Col>
                   <Col md={3}>
                     <div className="h3 text-success">
-                      {Math.max(...results.map(result => result.percentage))}%
+                      {Math.max(...results.map(result => isNaN(result.percentage) ? 0 : result.percentage))}%
                     </div>
                     <small className="text-muted">Highest Score</small>
                   </Col>
                   <Col md={3}>
                     <div className="h3 text-warning">
-                      {Math.min(...results.map(result => result.percentage))}%
+                      {Math.min(...results.map(result => isNaN(result.percentage) ? 0 : result.percentage))}%
                     </div>
                     <small className="text-muted">Lowest Score</small>
                   </Col>
                   <Col md={3}>
                     <div className="h3 text-info">
-                      {results.filter(result => result.percentage >= 70).length}
+                      {results.filter(result => (isNaN(result.percentage) ? 0 : result.percentage) >= 70).length}
                     </div>
                     <small className="text-muted">Passed (70%+)</small>
                   </Col>
